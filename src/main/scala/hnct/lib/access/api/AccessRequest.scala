@@ -13,8 +13,8 @@ package hnct.lib.access.api
  */
 trait AccessRequest {
 	
-	protected var _username : String
-	protected var _token : String
+	protected var _username : String = ""
+	protected var _token : String = ""
 	
 	// getters and setters
 	

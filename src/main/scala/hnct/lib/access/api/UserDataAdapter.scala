@@ -6,6 +6,6 @@ package hnct.lib.access.api
  * work with certain type of access request, and return certain type
  * of user data
  */
-trait UserDataAdapter[T <: AccessRequest, U <: User] {
+trait UserDataAdapter[U <: User] {
 
 }

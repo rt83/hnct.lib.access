@@ -1,31 +1,46 @@
 package hnct.lib.access.api
 
+import hnct.lib.session.api.SessionAccessor
+
 /**
  * AccessManager provide an API to process a certain type of access request
  * and a certain type of user data. AccessRequest to be passed into the AccessProcessor
  * is built by the caller of the AccessProcessor
  */
-trait AccessProcessor[T <: AccessRequest, U <: User] {
+trait AccessProcessor {
+
+	/**
+	 * The type of configuration of this access processor
+	 */
+	type ConfigType <: AccessProcessorConfig
+	/**
+	 * The type of user data this access processor need
+	 */
+	type UserType <: User
+	/**
+	 * The type of access request this access processor will process
+	 */
+	type AccessRequestType <: AccessRequest
 	
 	/**
 	 * Check if an access request is authenticated
 	 * An access request is authenticated if it is logged in before using 
 	 * the login method of the access processor
 	 */
-	def authenticate(req : T) : Boolean
+	def authenticate(req : AccessRequestType) : Boolean
 	
 	/**
 	 * Perform a login given an AccessRequest. 
 	 * @return the login result, whether the login is successful or not
 	 */
-	def login(req : T) : LoginResult[T, U]
+	def login(req : AccessRequestType) : LoginResult[AccessRequestType, UserType]
 	
 	/**
 	 * When the access processor perform a Login it might have set a timeout
 	 * as of when a successful login expires. If the user wants to renew its login
 	 * call this method of the access processor
 	 */
-	def renewLogin(req : T) : Unit
+	def renewLogin(req : AccessRequestType) : Unit
 	
 	/**
 	 * Get the login timeout of this access processor
@@ -42,28 +57,37 @@ trait AccessProcessor[T <: AccessRequest, U <: User] {
 	/**
 	 * Perform the logout
 	 */
-	def logout(req : T) : LogoutResult[T]
+	def logout(req : AccessRequestType) : LogoutResult[AccessRequestType]
 
 	/**
 	 * Configure this access processor with a configuration object
-	 * TODO: specify generic to avoid using AnyRef
+	 * 
 	 */
-	def configure(config : AnyRef)
+	def configure(config : ConfigType)
 	
 	/**
 	 * Get the user data adapter
 	 */
-	def userDataAdapter[D <: UserDataAdapter[T, U]] : D
+	def userDataAdapter[D <: UserDataAdapter[UserType]] : D
 	
 	/**
 	 * Set the user data adapter
 	 */
-	def userDataAdapter_=[D <: UserDataAdapter[T, U]](adapter : D) : Unit
+	def userDataAdapter_=[D <: UserDataAdapter[UserType]](adapter : D) : Unit
 	
-	/*
-	 * TODO: API for getting the login session
-	 * Login session allows caller to set and get data specific to a user session
+	/**
+	 * Get the login session accessor corresponding to an access request
+	 * Session accessor is the entry point to access the data stored
+	 * inside the session of the input access request
+	 * 
+	 * Example: when an user is login with BasicAccessProcessor
+	 * he will have a login session corresponding to his username, i.e.
+	 * the session data store is identified by his username
+	 * When he is login using SessionTokenAccessProcessor, his session store
+	 * is identified by both username and an session id. This allow multiple
+	 * login and data of the same user.
 	 */
+	def loginSessionAccessor(req : AccessRequestType) : SessionAccessor
 	
 	/* 
 	 * TODO: API for access right checking
