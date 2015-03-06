@@ -22,6 +22,8 @@ trait AccessProcessor {
 	 */
 	type AccessRequestType <: AccessRequest
 	
+	var _uda : UserDataAdapter = null
+	
 	/**
 	 * Check if an access request is authenticated
 	 * An access request is authenticated if it is logged in before using 
@@ -68,12 +70,12 @@ trait AccessProcessor {
 	/**
 	 * Get the user data adapter
 	 */
-	def userDataAdapter[D <: UserDataAdapter[UserType]] : D
+	def userDataAdapter : UserDataAdapter = _uda
 	
 	/**
 	 * Set the user data adapter
 	 */
-	def userDataAdapter_=[D <: UserDataAdapter[UserType]](adapter : D) : Unit
+	def userDataAdapter_=(adapter : UserDataAdapter) : Unit = _uda = adapter
 	
 	/**
 	 * Get the login session accessor corresponding to an access request

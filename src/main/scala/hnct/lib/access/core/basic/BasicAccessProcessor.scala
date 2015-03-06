@@ -20,7 +20,15 @@ class BasicAccessProcessor extends AccessProcessor {
 		???
 	}
 
-	def login(req: BasicAccessRequest): LoginResult[BasicAccessRequest, UserType] = {
+	def login(req: BasicAccessRequest): BasicLoginResult = {
+		val u = this.userDataAdapter.findUserByUsername(req.username)
+		
+		/*u.fold(new BasicLoginResult(req, u, false))({
+			
+			
+			
+		})*/
+		
 		???
 	}
 
@@ -41,14 +49,6 @@ class BasicAccessProcessor extends AccessProcessor {
 	}
 
 	def renewLogin(req: BasicAccessRequest): Unit = {
-		???
-	}
-
-	def userDataAdapter[D]: D = {
-		???
-	}
-
-	def userDataAdapter_=[D](adapter: D): Unit = {
 		???
 	}
 

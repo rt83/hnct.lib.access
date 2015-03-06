@@ -6,12 +6,16 @@ package hnct.lib.access.api
  * LoginResult
  *  
  */
+
+class LoginResultCode 
+
+
 trait LoginResult[T <: AccessRequest, U <: User] {
 	
 	val UNLIMITED = -1
 	
 	protected var _request : T
-	protected var _user : U
+	protected var _user : Option[U]
 	protected var _successful : Boolean
 	protected var _timeout : Long = UNLIMITED
 	
@@ -55,6 +59,6 @@ trait LoginResult[T <: AccessRequest, U <: User] {
 	 * request. This allow the caller to have the user data without having to query for it
 	 * explicitly again.
 	 */
-	def user_=(u : U) = _user = u
+	def user_=(u : Option[U]) = _user = u
 	
 }

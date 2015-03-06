@@ -6,7 +6,7 @@ package hnct.lib.access.api
  */
 abstract class AccessProcessorConfig(var tokenHashMethod : String) {
 
-	var _userDataAdapterClass : Class[_ <: UserDataAdapter[_]] = null
+	var _userDataAdapterClass : Class[_ <: UserDataAdapter] = null
 	
 	def this() = this(AccessProcessorConfig.DEFAULT_TOKEN_HASH_METHOD)
 	
