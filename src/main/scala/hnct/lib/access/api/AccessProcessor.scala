@@ -22,7 +22,9 @@ trait AccessProcessor {
 	 */
 	type AccessRequestType <: AccessRequest
 	
-	var _uda : UserDataAdapter = null
+	var _da : DataAdapter = null
+	
+	protected var _config : ConfigType
 	
 	/**
 	 * Check if an access request is authenticated
@@ -63,19 +65,26 @@ trait AccessProcessor {
 
 	/**
 	 * Configure this access processor with a configuration object
-	 * 
+	 * All classes implementing this method should call the super.configure method
 	 */
-	def configure(config : ConfigType)
+	def configure(config : ConfigType) = {
+		_config = config
+	}
+	
+	/**
+	 * Retrieving the configuration
+	 */
+	def config : ConfigType = _config
 	
 	/**
 	 * Get the user data adapter
 	 */
-	def userDataAdapter : UserDataAdapter = _uda
+	def userDataAdapter : DataAdapter = _da
 	
 	/**
 	 * Set the user data adapter
 	 */
-	def userDataAdapter_=(adapter : UserDataAdapter) : Unit = _uda = adapter
+	def userDataAdapter_=(adapter : DataAdapter) : Unit = _da = adapter
 	
 	/**
 	 * Get the login session accessor corresponding to an access request

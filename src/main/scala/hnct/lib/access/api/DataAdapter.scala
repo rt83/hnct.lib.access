@@ -1,13 +1,13 @@
 package hnct.lib.access.api
 
 /**
- * UserDataAdapter is the trait which allows AccessProcessor
+ * DataAdapter is the trait which allows AccessProcessor
  * to retrieve user data from a particular sources. A data adapter
  * work with certain type of access request. It provides an interface
  * to query for user's related data, such as the User's profile
  * user's access permissions, resource and permission list, etc..
  */
-trait UserDataAdapter {
+trait DataAdapter {
 	
 	/**
 	 * Find user from the data source and convert it to the 

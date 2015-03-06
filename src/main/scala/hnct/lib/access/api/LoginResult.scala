@@ -7,8 +7,18 @@ package hnct.lib.access.api
  *  
  */
 
-class LoginResultCode 
+class LoginResultCode extends Enumeration {
+	final val 
+		SUCCESSFUL, 
+		FAILED_USER_NOT_FOUND, 			// When user is not found from data source
+		FAILED_INVALID_USERNAME,		// When username validation doesn't pass
+		FAILED_INVALID_PASSWORD,		// When password validation doesn't pass or password doesn't match
+		FAILED_INVALID_CREDENTIALS,		// When we don't want to reveal the cause of failed login
+		FAILED_SYSTEM_ERROR
+		= Value
+}
 
+object LoginResultCode extends LoginResultCode
 
 trait LoginResult[T <: AccessRequest, U <: User] {
 	
@@ -16,7 +26,7 @@ trait LoginResult[T <: AccessRequest, U <: User] {
 	
 	protected var _request : T
 	protected var _user : Option[U]
-	protected var _successful : Boolean
+	protected var _status : LoginResultCode.Value
 	protected var _timeout : Long = UNLIMITED
 	
 	/**
@@ -31,13 +41,13 @@ trait LoginResult[T <: AccessRequest, U <: User] {
 	/**
 	 * Tell whether a particular login with an AccessRequest is successful
 	 */
-	def successful = _successful
+	def status = _status
 	/**
 	 * When an AccessProcess log a user in and return
 	 * a LoginResult, it has to tell the caller whether the login is successful
 	 * by calling this setter
 	 */
-	protected def successful_=(s : Boolean) = {_successful = s}
+	protected def status_=(s : LoginResultCode.Value) = {_status = s}
 	
 	/**
 	 * The time until the login is timeout
