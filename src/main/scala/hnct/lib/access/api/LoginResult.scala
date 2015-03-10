@@ -24,10 +24,16 @@ trait LoginResult[T <: AccessRequest, U <: User] {
 	
 	val UNLIMITED = -1
 	
-	protected var _request : T
-	protected var _user : Option[U]
-	protected var _status : LoginResultCode.Value
-	protected var _timeout : Long = UNLIMITED
+	private[this] var _request : T = _
+	private[this] var _user : Option[U] = None
+	private[this] var _status : LoginResultCode.Value = LoginResultCode.FAILED_INVALID_CREDENTIALS
+	private[this] var _timeout : Long = UNLIMITED
+	
+	/**
+	 * The token generated if the login is successful
+	 * AccessProcessor can decide whether to generate a token for a login
+	 */
+	private[this] var _token : Option[String] = None
 	
 	/**
 	 * Get the request that associated with this login
@@ -37,6 +43,15 @@ trait LoginResult[T <: AccessRequest, U <: User] {
 	 * Set the request that associated with this login
 	 */
 	protected def request_=(req : T) = _request = req
+	
+	/**
+	 * Get the token correspond to the login
+	 */
+	def token = _token
+	/**
+	 * Set the token
+	 */
+	protected def token_=(t : Option[String]) = _token = t
 	
 	/**
 	 * Tell whether a particular login with an AccessRequest is successful

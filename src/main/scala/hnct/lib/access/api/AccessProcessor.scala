@@ -22,9 +22,12 @@ trait AccessProcessor {
 	 */
 	type AccessRequestType <: AccessRequest
 	
-	var _da : DataAdapter = null
+	/**
+	 * The data adapter used to retrieve data
+	 */
+	var dataAdapter : DataAdapter = _
 	
-	protected var _config : ConfigType
+	private[this] var _config : ConfigType = _
 	
 	/**
 	 * Check if an access request is authenticated
@@ -69,22 +72,16 @@ trait AccessProcessor {
 	 */
 	def configure(config : ConfigType) = {
 		_config = config
+		
+		// use the data adapter class to initialize
+		// a data adapter
+		dataAdapter = config.dataAdapterClass.newInstance()
 	}
 	
 	/**
 	 * Retrieving the configuration
 	 */
 	def config : ConfigType = _config
-	
-	/**
-	 * Get the user data adapter
-	 */
-	def userDataAdapter : DataAdapter = _da
-	
-	/**
-	 * Set the user data adapter
-	 */
-	def userDataAdapter_=(adapter : DataAdapter) : Unit = _da = adapter
 	
 	/**
 	 * Get the login session accessor corresponding to an access request
@@ -97,8 +94,12 @@ trait AccessProcessor {
 	 * When he is login using SessionTokenAccessProcessor, his session store
 	 * is identified by both username and an session id. This allow multiple
 	 * login and data of the same user.
+	 * 
+	 * Since the access processor can be configured to use Session
+	 * this method returns an option instead of returning the instance of SessionAccessor 
+	 * directly
 	 */
-	def loginSessionAccessor(req : AccessRequestType) : SessionAccessor
+	def loginSessionAccessor(req : AccessRequestType) : Option[SessionAccessor]
 	
 	/* 
 	 * TODO: API for access right checking

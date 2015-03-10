@@ -6,6 +6,9 @@ package hnct.lib.access.api
  * work with certain type of access request. It provides an interface
  * to query for user's related data, such as the User's profile
  * user's access permissions, resource and permission list, etc..
+ * 
+ * All DataAdapter should have a constructor with empty parameter list
+ * so that it can be initialized by the AccessProcessorFactory
  */
 trait DataAdapter {
 	
