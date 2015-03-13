@@ -54,7 +54,7 @@ class BasicAccessProcessor extends AccessProcessor {
 	 * login pass the check
 	 */
 	protected def loginPass(req : AccessRequestType, user : UserType) : Boolean = {
-		req.token.equals(user.password)
+		hasher.hash(req, user).equals(user.password)
 	}
 	
 	/**

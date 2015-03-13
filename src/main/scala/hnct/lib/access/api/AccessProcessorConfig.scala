@@ -43,25 +43,6 @@ abstract class AccessProcessorConfig() {
 	 * token retrieved from data source. The reason is that passwords are often hashed to other form
 	 * within the database to prevent leakage
 	 */
-	var tokenHashMethod : String = AccessProcessorConfig.DEFAULT_TOKEN_HASH_METHOD
-	
-	/**
-	 * Because data in the json file is in String format so we need a setter
-	 * within String input, this will automatically convert the name to the correct class
-	 */
-	/*def dataAdapterClass_=(className : String) : Unit = {
-		try {
-			dataAdapterClass = Class.forName(className, true, Thread.currentThread().getContextClassLoader).asInstanceOf[Class[_ <: DataAdapter]]
-		}  catch {
-			case e : ClassNotFoundException => 
-				throw new RuntimeException(s"Cannot find the $className in the class path", e)
-		}
-	}*/
-	
-}
-
-object AccessProcessorConfig {
-	
-	final val DEFAULT_TOKEN_HASH_METHOD = "PLAIN"
+	var hasher : Option[Class[_ <: PasswordHasher[_, _]]] = None
 	
 }

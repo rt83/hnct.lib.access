@@ -31,6 +31,8 @@ object ConfigGenerator {
 			println(user.username)
 			println(user.password)
 		}
+		
+		config1.get.units(0).config.hasher.toString()
 	} 
 	
 }

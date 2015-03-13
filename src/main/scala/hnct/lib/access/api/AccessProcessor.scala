@@ -29,6 +29,8 @@ trait AccessProcessor {
 	
 	private[this] var _config : ConfigType = _
 	
+	var hasher : PasswordHasher[AccessRequestType, UserType] = _
+	
 	/**
 	 * Check if an access request is authenticated
 	 * An access request is authenticated if it is logged in before using 
@@ -76,6 +78,17 @@ trait AccessProcessor {
 		// use the data adapter class to initialize
 		// a data adapter
 		dataAdapter = config.dataAdapterClass.newInstance()
+		
+		hasher = config.hasher.map { hasherClass =>
+			hasherClass.asInstanceOf[Class[PasswordHasher[AccessRequestType, UserType]]].newInstance()
+		} getOrElse {
+			// the default hasher when there is no hasher class defined returns an unchanged token
+			new PasswordHasher[AccessRequestType, UserType] {
+				
+				def hash(request : AccessRequestType, user : UserType) = request.token
+				
+			}
+		}
 	}
 	
 	/**
