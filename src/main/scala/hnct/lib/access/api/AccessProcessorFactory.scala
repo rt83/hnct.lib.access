@@ -3,8 +3,9 @@ package hnct.lib.access.api
 import scala.collection._
 import hnct.lib.config.Configuration
 import hnct.lib.config.ConfigurationFormat
+import hnct.lib.utility.Logable
 
-object AccessProcessorFactory {
+object AccessProcessorFactory extends Logable {
 	
 	private val configFileName = "access.json"
 	private val systemPropName = "accessConfigFile"
@@ -27,7 +28,10 @@ object AccessProcessorFactory {
 		
 		accessUnit.configure(unit.config.asInstanceOf[accessUnit.ConfigType])
 		
-		auMap + (unit.name -> accessUnit)
+		log.info("Access unit {} was initialized and added to the map.", unit.name)
+		
+		auMap += (unit.name -> accessUnit)
+		
 	}
 	
 	if (config.defaultUnit != null && !config.defaultUnit.isEmpty()) {

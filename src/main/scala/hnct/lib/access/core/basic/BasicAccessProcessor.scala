@@ -8,8 +8,9 @@ import hnct.lib.access.api.LoginResultCode
 import hnct.lib.session.api._
 import hnct.lib.access.core.util.AccessKeyGenerator
 import java.util.Date
+import hnct.lib.utility.Logable
 
-class BasicAccessProcessor extends AccessProcessor {
+class BasicAccessProcessor extends AccessProcessor with Logable {
 
 	type ConfigType = BasicAccessProcessorConfig
 	type AccessRequestType = BasicAccessRequest
@@ -77,17 +78,13 @@ class BasicAccessProcessor extends AccessProcessor {
 	 */
 	protected def writeSessionOnSuccessLogin(result : LoginResult[AccessRequestType, UserType]) : Unit = {
 		
-		val session = config.sessionUnit.fold(SessionFactory.getSession())(SessionFactory.getSession(_))
-		
-		session.map { sess =>
-			
-			val accessor = sess.accessor(SessionAccessorSpecification(config.sessionNamespace, result.request.username))
+		loginSessionAccessor(result.request).map { accessor =>
 			
 			result.token.map { token =>
 				val timeout = if (result.request.timeout == -1) loginTimeout else result.request.timeout
 				
 				if (timeout == -1) accessor.write(TOKEN_KEY, token)	// implicit conversion to session value is used here
-				else accessor.write(TOKEN_KEY, (token, timeout)) 	// implicit conversion to session value is used here
+				else accessor.write(TOKEN_KEY, (token, timeout)) 	// implicit conversion to session value is used here			
 			}
 			
 		}
@@ -99,9 +96,7 @@ class BasicAccessProcessor extends AccessProcessor {
 			config.sessionUnit.fold(SessionFactory.getSession())(SessionFactory.getSession(_)).map { 
 				_.accessor(SessionAccessorSpecification(config.sessionNamespace, req.username))
 			}
-		}
-		
-		None
+		} else None
 	}
 
 	def loginTimeout: Long = config.loginTimeout
