@@ -9,6 +9,8 @@ import hnct.lib.session.api._
 import hnct.lib.access.core.util.AccessKeyGenerator
 import java.util.Date
 import hnct.lib.utility.Logable
+import hnct.lib.access.api.ActionResultCode
+import hnct.lib.access.api.LogoutResultCode
 
 class BasicAccessProcessor extends AccessProcessor with Logable {
 
@@ -18,12 +20,17 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 	
 	final val TOKEN_KEY = "_token"
 
-	def authenticate(req: AccessRequestType): Boolean = {
-		loginSessionAccessor(req).map { accessor =>
-			accessor.read[String](TOKEN_KEY).map {
-				_.value.equals(req.token)
-			} .getOrElse(false)
-		} .getOrElse(false)
+	def authenticate(req: AccessRequestType): BasicActionResult = {
+		
+		val failed = new BasicActionResult(req)
+		
+		loginSessionAccessor(req).fold(failed) { accessor =>
+			accessor.read[String](TOKEN_KEY).fold (failed) { sessionValue =>
+				if (sessionValue.value.equals(req.token))
+					new BasicActionResult(req, ActionResultCode.SUCCESSFUL)
+				else failed
+			}
+		}
 	}
 
 	/**
@@ -104,11 +111,36 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 	def loginTimeout_=(timeout: Long): Unit = config.loginTimeout = timeout
 
 	def logout(req: AccessRequestType): LogoutResult[AccessRequestType] = {
-		???
+		
+		if (authenticate(req).status != ActionResultCode.SUCCESSFUL) 
+			return new BasicLogoutResult(req, LogoutResultCode.FAILED_NOT_AUTHENTICATED)
+		
+		loginSessionAccessor(req).
+			// we already authenticated the request above, but then its session is not found
+			// probably some other thread has logged out the user already
+			fold(new BasicLogoutResult(req, LogoutResultCode.FAILED_ALREADY_LOGGED_OUT))
+			{ accessor =>
+			
+				if (accessor.delete(TOKEN_KEY))
+					new BasicLogoutResult(req, LogoutResultCode.SUCCESSFUL)
+				else new BasicLogoutResult(req, LogoutResultCode.FAILED_UNABLE_TO_REMOVE_SESSION_KEY)
+			}
 	}
-
-	def renewLogin(req: AccessRequestType): Unit = {
-		???
+	
+	/**
+	 * renew the login
+	 */
+	def renewLogin(req: AccessRequestType): BasicActionResult = {
+		if (authenticate(req).status != ActionResultCode.SUCCESSFUL) 
+			return new BasicActionResult(req, LogoutResultCode.FAILED_NOT_AUTHENTICATED)
+		
+		loginSessionAccessor(req).
+			
+			fold(new BasicActionResult(req, ActionResultCode.FAILED)) { accessor =>
+				if (accessor.renew(TOKEN_KEY))	// renew the time to live of the token in the session
+					new BasicActionResult(req, ActionResultCode.SUCCESSFUL)
+				else new BasicActionResult(req)
+			}
 	}
 
 }

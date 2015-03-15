@@ -1,9 +1,11 @@
-package hnct.lib.access.core.basic
+package hnct.lib.access.example
 
 import hnct.lib.access.api.AccessProcessorFactoryConfig
 import hnct.lib.access.api.AccessUnit
+import hnct.lib.access.core.basic.BasicAccessProcessorConfig
 import hnct.lib.config.Configuration
 import hnct.lib.config.ConfigurationFormat
+import hnct.lib.access.core.basic.BasicAccessProcessor
 
 object ConfigGenerator {
 	

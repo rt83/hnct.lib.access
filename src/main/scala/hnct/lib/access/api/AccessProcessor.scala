@@ -36,7 +36,7 @@ trait AccessProcessor {
 	 * An access request is authenticated if it is logged in before using 
 	 * the login method of the access processor
 	 */
-	def authenticate(req : AccessRequestType) : Boolean
+	def authenticate(req : AccessRequestType) : ActionResult[AccessRequestType]
 	
 	/**
 	 * Perform a login given an AccessRequest. 
@@ -49,7 +49,7 @@ trait AccessProcessor {
 	 * as of when a successful login expires. If the user wants to renew its login
 	 * call this method of the access processor
 	 */
-	def renewLogin(req : AccessRequestType) : Unit
+	def renewLogin(req : AccessRequestType) : ActionResult[AccessRequestType]
 	
 	/**
 	 * Get the login timeout of this access processor

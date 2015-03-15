@@ -1,0 +1,17 @@
+{
+  "defaultUnit" : "unit1",
+  "units" : [ {
+    "name" : "unit1",
+    "processor" : "hnct.lib.access.core.basic.BasicAccessProcessor",
+    "config" : {
+      "_class" : "hnct.lib.access.core.basic.BasicAccessProcessorConfig",
+      "dataAdapterClass" : "hnct.lib.access.example.TestDataAdapter",
+      "sessionUnit" : null,
+      "useSession" : true,
+      "sessionNamespace" : "usersession",
+      "hasher" : "hnct.lib.access.core.hashers.MD5Hasher",
+      "loginTimeout" : -1,
+      "renewOnAuth" : true
+    }
+  } ]
+}

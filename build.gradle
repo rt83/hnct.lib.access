@@ -27,4 +27,5 @@ dependencies {
 	compile 'com.typesafe.play:play-java_2.11:2.3.7'
 	
 	testCompile "org.scalatest:scalatest_${strip_minor(scalaVersion)}:2.2.4"
+	testRuntime "org.pegdown:pegdown:1.1.0"
 }

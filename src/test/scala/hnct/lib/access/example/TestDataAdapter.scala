@@ -1,7 +1,9 @@
-package hnct.lib.access.core.basic
+package hnct.lib.access.example
 
 import hnct.lib.access.api.DataAdapter
 import hnct.lib.access.api.User
+import java.security.MessageDigest
+import org.apache.commons.codec.binary.Hex
 
 /**
  * A test data adapter which returns a user when the username start
@@ -11,10 +13,17 @@ import hnct.lib.access.api.User
  */
 class TestDataAdapter extends DataAdapter {
 	
+	def md5(s : String) = {
+		val md = MessageDigest.getInstance("MD5")
+		val digested = md.digest(s.getBytes("utf-8"))
+		
+		new String(Hex.encodeHex(digested))
+	}
+	
 	def findUserByUsername(username: String): Option[User] = {
 		if (('a' to 'm') exists { c => 
 			username.startsWith(s"$c") 
-		}) Some(new User(username, username))
+		}) Some(new User(username, md5(username)))
 		else None
 
 	}

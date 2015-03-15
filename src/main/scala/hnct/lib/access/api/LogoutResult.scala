@@ -6,29 +6,20 @@ package hnct.lib.access.api
  * LoginResult
  *  
  */
-trait LogoutResult[T <: AccessRequest] {
+class LogoutResultCode extends ActionResultCode {
 	
-	protected var _request : T
-	protected var _successful : Boolean
+	// occurs when the user is already logged out
+	final case object FAILED_ALREADY_LOGGED_OUT extends LogoutResultCode
+
+	// when we can't remove the token key from the session
+	final case object FAILED_UNABLE_TO_REMOVE_SESSION_KEY extends LogoutResultCode
 	
-	/**
-	 * Get the request that associated with this logout
-	 */
-	def request = _request
-	/**
-	 * Set the request that associated with this logout
-	 */
-	protected def request_=(req : T) = _request = req
-	
-	/**
-	 * Tell whether a particular login with an AccessRequest is successful
-	 */
-	def successful = _successful
-	/**
-	 * When an AccessProcess log a user in and return
-	 * a LoginResult, it has to tell the caller whether the login is successful
-	 * by calling this setter
-	 */
-	protected def successful_=(s : Boolean) = {_successful = s}
+}
+
+object LogoutResultCode extends LogoutResultCode {
+
+}
+
+trait LogoutResult[T <: AccessRequest] extends ActionResult[T] {
 	
 }
