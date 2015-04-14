@@ -3,7 +3,7 @@
  * @author ryan
  */
 version = "1.0.0"
-group = "hnct.lib"
+group = "hnct"
 
 ext.scalaVersion = "2.11.1"
 
