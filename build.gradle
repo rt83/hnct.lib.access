@@ -18,10 +18,6 @@ dependencies {
 	projDependency ':hnct.lib.utility'
 	prod 'hnct.lib:hnct.lib.utility:1.0.0'
 	
-	// slf4j
-	compile 'org.slf4j:slf4j-api:1.7.6'
-	runtime 'ch.qos.logback:logback-core:1.0.7'
-	
 	// playframework dependencies
 	compile 'com.typesafe.play:play_2.11:2.4.0-M3'
 	compile 'com.typesafe.play:play-java_2.11:2.4.0-M3'
