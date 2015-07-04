@@ -43,12 +43,14 @@ object AccessProcessorFactory extends Logable {
 		// print some warning that the default access unit is not defined
 	}
 	
-	def get() = {
+	def get = {
 		auMap.get(config.defaultUnit)
 	}
 	
-	def get(unitName : String) = {
-		auMap.get(unitName)
+	def get(unitName : String) : Option[AccessProcessor] = {
+		
+		if (unitName.isEmpty()) get
+		else auMap.get(unitName)
 	}
 	
 }
