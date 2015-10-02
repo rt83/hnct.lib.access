@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.As
  * 
  */
 @JsonTypeInfo(use=Id.CLASS, include=As.PROPERTY, property="_class")
-abstract class AccessProcessorConfig() {
+abstract class AccessProcessorConfig {
 
 	/**
 	 * The class name of the user data adapter. This class is used
@@ -20,6 +20,9 @@ abstract class AccessProcessorConfig() {
 	/**
 	 * The name of the session unit being use for the AccessProcessor
 	 * Can be None if use the default session unit
+	 * 
+	 * The access library relies on the Session libraries (hnct.lib.session) to access
+	 * session data
 	 */
 	var sessionUnit : Option[String] = None
 	

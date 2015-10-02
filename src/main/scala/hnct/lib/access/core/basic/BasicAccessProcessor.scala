@@ -2,25 +2,23 @@ package hnct.lib.access.core.basic
 
 import hnct.lib.access.api.AccessProcessor
 import hnct.lib.access.api.User
-import hnct.lib.access.api.LogoutResult
-import hnct.lib.access.api.LoginResult
-import hnct.lib.access.api.LoginResultCode
+import hnct.lib.access.api.results.LogoutResult
+import hnct.lib.access.api.results.LoginResult
+import hnct.lib.access.api.results.LoginResultCode
 import hnct.lib.session.api._
 import hnct.lib.access.core.util.AccessKeyGenerator
 import java.util.Date
 import hnct.lib.utility.Logable
-import hnct.lib.access.api.ActionResultCode
-import hnct.lib.access.api.LogoutResultCode
+import hnct.lib.access.api.results.ActionResultCode
+import hnct.lib.access.api.results.LogoutResultCode
 
-class BasicAccessProcessor extends AccessProcessor with Logable {
+class BasicAccessProcessor extends AccessProcessor[BasicAccessProcessorConfig, User, BasicAccessRequest] with Logable {
 
-	type ConfigType = BasicAccessProcessorConfig
-	type AccessRequestType = BasicAccessRequest
-	type UserType = User
+	override type ConfigType = BasicAccessProcessorConfig
 	
 	final val TOKEN_KEY = "_token"
 
-	def authenticate(req: AccessRequestType): BasicActionResult = {
+	def authenticate(req: BasicAccessRequest): BasicActionResult = {
 		
 		val failed = new BasicActionResult(req)
 		
@@ -38,7 +36,7 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 	 * Depending on whether session is used (configured in the config file)
 	 * the access token will be written into the session
 	 */
-	def login(req: AccessRequestType): LoginResult[AccessRequestType, UserType] = {
+	def login(req: BasicAccessRequest): LoginResult[BasicAccessRequest, User] = {
 		val u = dataAdapter.findUserByUsername(req.username)
 		
 		u.fold(new BasicLoginResult(req, LoginResultCode.FAILED_USER_NOT_FOUND))({user =>
@@ -61,7 +59,7 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 	 * user. This method allow inheriting class to customize the way to check if a 
 	 * login pass the check
 	 */
-	protected def loginPass(req : AccessRequestType, user : UserType) : Boolean = {
+	protected def loginPass(req : BasicAccessRequest, user : User) : Boolean = {
 		hasher.hash(req, user).equals(user.password)
 	}
 	
@@ -72,7 +70,7 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 	 * 
 	 * Sub class can override this method to customize the way the token is calculated
 	 */
-	protected def calculateToken(req : AccessRequestType, user : Option[UserType]) : String = {
+	protected def calculateToken(req : BasicAccessRequest, user : Option[User]) : String = {
 		
 		AccessKeyGenerator.timeToken(req.username, req.token, new Date(System.currentTimeMillis()))
 		
@@ -83,7 +81,7 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 	 * This method allow the inheriting class to customize the way to write the user
 	 * information into session when login successful
 	 */
-	protected def writeSessionOnSuccessLogin(result : LoginResult[AccessRequestType, UserType]) : Unit = {
+	protected def writeSessionOnSuccessLogin(result : LoginResult[BasicAccessRequest, User]) : Unit = {
 		
 		loginSessionAccessor(result.request).map { accessor =>
 			
@@ -98,7 +96,7 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 		
 	}
 
-	def loginSessionAccessor(req: AccessRequestType): Option[SessionAccessor] = {
+	def loginSessionAccessor(req: BasicAccessRequest): Option[SessionAccessor] = {
 		if (config.useSession) {
 			config.sessionUnit.fold(SessionFactory.getSession())(SessionFactory.getSession(_)).map { 
 				_.accessor(SessionAccessorSpecification(config.sessionNamespace, req.username))
@@ -110,7 +108,7 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 
 	def loginTimeout_=(timeout: Long): Unit = config.loginTimeout = timeout
 
-	def logout(req: AccessRequestType): LogoutResult[AccessRequestType] = {
+	def logout(req: BasicAccessRequest): LogoutResult[BasicAccessRequest] = {
 		
 		if (authenticate(req).status != ActionResultCode.SUCCESSFUL) 
 			return new BasicLogoutResult(req, LogoutResultCode.FAILED_NOT_AUTHENTICATED)
@@ -130,7 +128,7 @@ class BasicAccessProcessor extends AccessProcessor with Logable {
 	/**
 	 * renew the login
 	 */
-	def renewLogin(req: AccessRequestType): BasicActionResult = {
+	def renewLogin(req: BasicAccessRequest): BasicActionResult = {
 		if (authenticate(req).status != ActionResultCode.SUCCESSFUL) 
 			return new BasicActionResult(req, LogoutResultCode.FAILED_NOT_AUTHENTICATED)
 		

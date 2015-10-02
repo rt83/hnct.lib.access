@@ -1,55 +1,50 @@
 package hnct.lib.access.api
 
 import hnct.lib.session.api.SessionAccessor
+import hnct.lib.access.api.results.LogoutResult
+import hnct.lib.access.api.results.LoginResult
+import hnct.lib.access.api.results.ActionResult
 
 /**
  * AccessManager provide an API to process a certain type of access request
  * and a certain type of user data. AccessRequest to be passed into the AccessProcessor
  * is built by the caller of the AccessProcessor
  */
-trait AccessProcessor {
+trait AccessProcessor[CT <: AccessProcessorConfig, UT <: User, ART <: AccessRequest] {
 
 	/**
 	 * The type of configuration of this access processor
 	 */
-	type ConfigType <: AccessProcessorConfig
-	/**
-	 * The type of user data this access processor need
-	 */
-	type UserType <: User
-	/**
-	 * The type of access request this access processor will process
-	 */
-	type AccessRequestType <: AccessRequest
+	type ConfigType = CT
 	
 	/**
 	 * The data adapter used to retrieve data
 	 */
 	var dataAdapter : DataAdapter = _
 	
-	private[this] var _config : ConfigType = _
+	private[this] var _config : CT = _
 	
-	var hasher : PasswordHasher[AccessRequestType, UserType] = _
+	var hasher : PasswordHasher[ART, UT] = _
 	
 	/**
 	 * Check if an access request is authenticated
 	 * An access request is authenticated if it is logged in before using 
 	 * the login method of the access processor
 	 */
-	def authenticate(req : AccessRequestType) : ActionResult[AccessRequestType]
+	def authenticate(req : ART) : ActionResult[ART]
 	
 	/**
 	 * Perform a login given an AccessRequest. 
 	 * @return the login result, whether the login is successful or not
 	 */
-	def login(req : AccessRequestType) : LoginResult[AccessRequestType, UserType]
+	def login(req : ART) : LoginResult[ART, UT]
 	
 	/**
 	 * When the access processor perform a Login it might have set a timeout
 	 * as of when a successful login expires. If the user wants to renew its login
 	 * call this method of the access processor
 	 */
-	def renewLogin(req : AccessRequestType) : ActionResult[AccessRequestType]
+	def renewLogin(req : ART) : ActionResult[ART]
 	
 	/**
 	 * Get the login timeout of this access processor
@@ -66,7 +61,7 @@ trait AccessProcessor {
 	/**
 	 * Perform the logout
 	 */
-	def logout(req : AccessRequestType) : LogoutResult[AccessRequestType]
+	def logout(req : ART) : LogoutResult[ART]
 
 	/**
 	 * Configure this access processor with a configuration object
@@ -80,12 +75,12 @@ trait AccessProcessor {
 		dataAdapter = config.dataAdapterClass.newInstance()
 		
 		hasher = config.hasher.map { hasherClass =>
-			hasherClass.asInstanceOf[Class[PasswordHasher[AccessRequestType, UserType]]].newInstance()
+			hasherClass.asInstanceOf[Class[PasswordHasher[ART, UT]]].newInstance()
 		} getOrElse {
 			// the default hasher when there is no hasher class defined returns an unchanged token
-			new PasswordHasher[AccessRequestType, UserType] {
+			new PasswordHasher[ART, UT] {
 				
-				def hash(request : AccessRequestType, user : UserType) = request.token
+				def hash(request : ART, user : UT) = request.token
 				
 			}
 		}
@@ -94,7 +89,7 @@ trait AccessProcessor {
 	/**
 	 * Retrieving the configuration
 	 */
-	def config : ConfigType = _config
+	def config : CT = _config
 	
 	/**
 	 * Get the login session accessor corresponding to an access request
@@ -112,7 +107,7 @@ trait AccessProcessor {
 	 * this method returns an option instead of returning the instance of SessionAccessor 
 	 * directly
 	 */
-	def loginSessionAccessor(req : AccessRequestType) : Option[SessionAccessor]
+	def loginSessionAccessor(req : ART) : Option[SessionAccessor]
 	
 	/* 
 	 * TODO: API for access right checking

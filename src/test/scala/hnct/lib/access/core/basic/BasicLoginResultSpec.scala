@@ -1,6 +1,6 @@
 package hnct.lib.access.core.basic
 
-import hnct.lib.access.api.LoginResultCode
+import hnct.lib.access.api.results.LoginResultCode
 
 class BasicLoginResultSpec extends UnitSpec {
 	

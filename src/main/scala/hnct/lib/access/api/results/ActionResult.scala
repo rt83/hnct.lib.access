@@ -1,4 +1,6 @@
-package hnct.lib.access.api
+package hnct.lib.access.api.results
+
+import hnct.lib.access.api.AccessRequest
 
 class ActionResultCode {
 	final case object SUCCESSFUL extends ActionResultCode 
@@ -17,11 +19,11 @@ trait ActionResult[T <: AccessRequest] {
 	/**
 	 * The access request associated with the Action
 	 */
-	var request : T = _
+	def request : T
 	
 	/**
 	 * The status of the action
 	 */
-	var status : ActionResultCode = ActionResultCode.FAILED
+	def status : ActionResultCode = ActionResultCode.FAILED
 	
 }

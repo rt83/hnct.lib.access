@@ -1,19 +1,15 @@
 package hnct.lib.access.core.basic
 
-import hnct.lib.access.api.LoginResult
+import hnct.lib.access.api.results.LoginResult
 import hnct.lib.access.api.User
-import hnct.lib.access.api.LoginResultCode
-import hnct.lib.access.api.ActionResultCode
+import hnct.lib.access.api.results.LoginResultCode
+import hnct.lib.access.api.results.ActionResultCode
 
-class BasicLoginResult(_request : BasicAccessRequest, 
-		_user : Option[User], 
-		_status : ActionResultCode,
-		_token : Option[String]) extends LoginResult[BasicAccessRequest, User] {
-	
-	request = _request
-	user = _user
-	status = _status
-	token = _token
+class BasicLoginResult(
+		override val request : BasicAccessRequest, 
+		override val user : Option[User], 
+		override val status : ActionResultCode,
+		override val token : Option[String]) extends LoginResult[BasicAccessRequest, User] {
 
 	def this(req : BasicAccessRequest) = this(req, None, LoginResultCode.FAILED_INVALID_CREDENTIALS, None) 
 	

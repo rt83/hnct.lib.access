@@ -1,15 +1,12 @@
 package hnct.lib.access.core.basic
 
-import hnct.lib.access.api.LogoutResult
-import hnct.lib.access.api.ActionResultCode
+import hnct.lib.access.api.results.LogoutResult
+import hnct.lib.access.api.results.ActionResultCode
 
 class BasicLogoutResult(
-			_r : BasicAccessRequest, 
-			_s : ActionResultCode)
+			override val request : BasicAccessRequest, 
+			override val status : ActionResultCode)
 		extends LogoutResult[BasicAccessRequest] {
-	
-	status = _s
-	request = _r
 	
 	def this(req : BasicAccessRequest) = this(req, ActionResultCode.FAILED)
 	

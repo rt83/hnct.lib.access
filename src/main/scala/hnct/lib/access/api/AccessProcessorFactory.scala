@@ -5,22 +5,9 @@ import hnct.lib.config.Configuration
 import hnct.lib.config.ConfigurationFormat
 import hnct.lib.utility.Logable
 
-object AccessProcessorFactory extends Logable {
+class AccessProcessorFactory(val config : AccessProcessorFactoryConfig) extends Logable {
 	
-	private val configFileName = "access.json"
-	private val systemPropName = "accessConfigFile"
-	
-	private val auMap = mutable.HashMap[String, AccessProcessor]()	// access unit map
-	
-	// read the configuration
-	private val config = Configuration.read(
-				Some(configFileName), 
-				Some(systemPropName), 
-				classOf[AccessProcessorFactoryConfig], 
-				ConfigurationFormat.JSON
-	).
-	// throw exception when cannot read the configuration file successfully
-	getOrElse(throw new RuntimeException("Could not load the access configuration file"))
+	private val auMap = mutable.HashMap[String, AccessProcessor[_, _, _]]()	// access unit map
 	
 	// build the session from the configuration
 	config.units.foreach { unit =>
@@ -30,7 +17,7 @@ object AccessProcessorFactory extends Logable {
 		
 		log.info("Access unit {} was initialized and added to the map.", unit.name)
 		
-		auMap += (unit.name -> accessUnit)
+		auMap.put(unit.name, accessUnit)
 		
 	}
 	
@@ -47,10 +34,35 @@ object AccessProcessorFactory extends Logable {
 		auMap.get(config.defaultUnit)
 	}
 	
-	def get(unitName : String) : Option[AccessProcessor] = {
+	def get(unitName : String) : Option[AccessProcessor[_,_,_]] = {
 		
 		if (unitName.isEmpty()) get
 		else auMap.get(unitName)
+	}
+	
+}
+
+/**
+ * Companion object to create the factory from file name
+ */
+object AccessProcessorFactory {
+	
+	private val configFileName = "access.json"
+	private val systemPropName = "accessConfigFile"
+	
+	def apply() : AccessProcessorFactory = apply(configFileName, systemPropName)
+	
+	def apply(fileName : String, systemPropName : String) = {
+		val config = Configuration.read(
+				Some(configFileName), 
+				Some(systemPropName), 
+				classOf[AccessProcessorFactoryConfig], 
+				ConfigurationFormat.JSON
+		).
+		// throw exception when cannot read the configuration file successfully
+		getOrElse(throw new RuntimeException("Could not load the access configuration file"))
+		
+		new AccessProcessorFactory(config)
 	}
 	
 }
