@@ -99,7 +99,7 @@ class BasicAccessProcessor extends AccessProcessor[BasicAccessProcessorConfig, U
 	def loginSessionAccessor(req: BasicAccessRequest): Option[SessionAccessor] = {
 		if (config.useSession) {
 			config.sessionUnit.fold(SessionFactory.getSession())(SessionFactory.getSession(_)).map { 
-				_.accessor(SessionAccessorSpecification(config.sessionNamespace, req.username))
+				_.accessor(SessionAccessorConfig(config.sessionNamespace, req.username))
 			}
 		} else None
 	}
