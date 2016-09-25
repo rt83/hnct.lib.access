@@ -5,7 +5,7 @@ import hnct.lib.access.api.results.LoginResultCode
 class BasicLoginResultSpec extends UnitSpec {
 	
 	"A BasicLoginResult" should "be able to initialize with request and LoginResultCode only" in {
-		val result = new BasicLoginResult(new BasicAccessRequest("ryan", "password"), LoginResultCode.FAILED_INVALID_CREDENTIALS)
+		val result = BasicLoginResult(new BasicAccessRequest("ryan", "password"), LoginResultCode.FAILED_INVALID_CREDENTIALS)
 		
 		result.request.username should be ("ryan")
 		result.user should be (None)

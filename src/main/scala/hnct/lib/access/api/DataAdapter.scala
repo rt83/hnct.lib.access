@@ -1,5 +1,7 @@
 package hnct.lib.access.api
 
+import scala.concurrent.Future
+
 /**
  * DataAdapter is the trait which allows AccessProcessor
  * to retrieve user data from a particular sources. A data adapter
@@ -18,6 +20,6 @@ trait DataAdapter {
 	 * @param username the user name of the user being looking for
 	 * @return Some[User] if the user is found, None if no user is found
 	 */
-	def findUserByUsername(username : String) : Option[User]
+	def findUserByUsername(username : String) : Future[Option[User]]
 	
 }

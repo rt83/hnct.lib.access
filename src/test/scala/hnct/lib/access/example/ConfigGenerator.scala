@@ -1,17 +1,19 @@
 package hnct.lib.access.example
 
-import hnct.lib.access.api.AccessProcessorFactoryConfig
+import hnct.lib.access.api.AccessProcessorContainerConfig
 import hnct.lib.access.api.AccessUnit
 import hnct.lib.access.core.basic.BasicAccessProcessorConfig
 import hnct.lib.config.Configuration
 import hnct.lib.config.ConfigurationFormat
 import hnct.lib.access.core.basic.BasicAccessProcessor
+import scala.concurrent.duration._
+import scala.concurrent.Await
 
 object ConfigGenerator {
 	
 	def main(args : Array[String]) {
 		
-		val config = AccessProcessorFactoryConfig("unit1", List(
+		val config = AccessProcessorContainerConfig("unit1", List(
 				AccessUnit("unit1", classOf[BasicAccessProcessor], new BasicAccessProcessorConfig())
 			))
 			
@@ -25,11 +27,11 @@ object ConfigGenerator {
 			
 		// this part read back the configuration from the same file
 		// initialize an instance of the data adapter, and use it to find a user by his username
-		val config1 = Configuration.read(fileName, classOf[AccessProcessorFactoryConfig], ConfigurationFormat.JSON)
+		val config1 = Configuration.read(fileName, classOf[AccessProcessorContainerConfig], ConfigurationFormat.JSON)
 		
 		val adapter = config1.get.units(0).config.dataAdapterClass.newInstance()
 		
-		adapter.findUserByUsername("abc").map { user =>
+		Await.result(adapter.findUserByUsername("abc"), 10 seconds) map { user =>
 			println(user.username)
 			println(user.password)
 		}

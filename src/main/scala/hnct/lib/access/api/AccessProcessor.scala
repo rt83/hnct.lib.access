@@ -4,25 +4,37 @@ import hnct.lib.session.api.SessionAccessor
 import hnct.lib.access.api.results.LogoutResult
 import hnct.lib.access.api.results.LoginResult
 import hnct.lib.access.api.results.ActionResult
+import scala.concurrent.Future
+
+/**
+ * The factory that can create access processor. This is provided by the 
+ * implementation of each type of access processor.
+ * 
+ * Each access processor should be implemented within a GUICE module, which
+ * provide the actual factory. All factory will be provided in a map binding which
+ * will be used by the Container to create the necessary access processor.
+ * 
+ * Refer to the container to see how the map binding is used.
+ */
+trait AccessProcessorFactory[UT <: User, ART <: AccessRequest] {
+	
+	def create(config : AccessProcessorConfig) : AccessProcessor[UT, ART];
+	
+}
 
 /**
  * AccessManager provide an API to process a certain type of access request
  * and a certain type of user data. AccessRequest to be passed into the AccessProcessor
  * is built by the caller of the AccessProcessor
  */
-trait AccessProcessor[CT <: AccessProcessorConfig, UT <: User, ART <: AccessRequest] {
-
-	/**
-	 * The type of configuration of this access processor
-	 */
-	type ConfigType = CT
+trait AccessProcessor[UT <: User, ART <: AccessRequest] {
 	
 	/**
 	 * The data adapter used to retrieve data
 	 */
 	var dataAdapter : DataAdapter = _
 	
-	private[this] var _config : CT = _
+	protected[this] val _config : AccessProcessorConfig
 	
 	var hasher : PasswordHasher[ART, UT] = _
 	
@@ -31,20 +43,20 @@ trait AccessProcessor[CT <: AccessProcessorConfig, UT <: User, ART <: AccessRequ
 	 * An access request is authenticated if it is logged in before using 
 	 * the login method of the access processor
 	 */
-	def authenticate(req : ART) : ActionResult[ART]
+	def authenticate(req : ART) : Future[ActionResult[ART]]
 	
 	/**
 	 * Perform a login given an AccessRequest. 
 	 * @return the login result, whether the login is successful or not
 	 */
-	def login(req : ART) : LoginResult[ART, UT]
+	def login(req : ART) : Future[LoginResult[ART, UT]]
 	
 	/**
 	 * When the access processor perform a Login it might have set a timeout
 	 * as of when a successful login expires. If the user wants to renew its login
 	 * call this method of the access processor
 	 */
-	def renewLogin(req : ART) : ActionResult[ART]
+	def renewLogin(req : ART) : Future[ActionResult[ART]]
 	
 	/**
 	 * Get the login timeout of this access processor
@@ -61,35 +73,12 @@ trait AccessProcessor[CT <: AccessProcessorConfig, UT <: User, ART <: AccessRequ
 	/**
 	 * Perform the logout
 	 */
-	def logout(req : ART) : LogoutResult[ART]
-
-	/**
-	 * Configure this access processor with a configuration object
-	 * All classes implementing this method should call the super.configure method
-	 */
-	def configure(config : ConfigType) = {
-		_config = config
-		
-		// use the data adapter class to initialize
-		// a data adapter
-		dataAdapter = config.dataAdapterClass.newInstance()
-		
-		hasher = config.hasher.map { hasherClass =>
-			hasherClass.asInstanceOf[Class[PasswordHasher[ART, UT]]].newInstance()
-		} getOrElse {
-			// the default hasher when there is no hasher class defined returns an unchanged token
-			new PasswordHasher[ART, UT] {
-				
-				def hash(request : ART, user : UT) = request.token
-				
-			}
-		}
-	}
+	def logout(req : ART) : Future[LogoutResult[ART]]
 	
 	/**
 	 * Retrieving the configuration
 	 */
-	def config : CT = _config
+	def config : AccessProcessorConfig = _config
 	
 	/**
 	 * Get the login session accessor corresponding to an access request

@@ -9,9 +9,11 @@ import hnct.lib.access.api.AccessRequest
  * When it is a login request, the token will have to be the user password
  * 
  * If timeout is set, it define how long the login session will last. If it is set to -1
- * the timeout defined by the AccessProcessor will be used. 
+ * the timeout defined by the AccessProcessor will be used.
+ * 
+ * When it is used for authentication, the time out is not used.
  */
-class BasicAccessRequest(
+case class BasicAccessRequest(
 		override val username : String, 
 		override val token : String, 
 		val timeout : Long) extends AccessRequest {

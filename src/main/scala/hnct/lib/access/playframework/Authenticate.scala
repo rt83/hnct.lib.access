@@ -10,6 +10,8 @@ import hnct.lib.access.api.AccessRequest
 import hnct.lib.access.api.User
 import hnct.lib.access.api.AccessRequestBuilder
 import hnct.lib.access.core.basic.BasicAccessRequest
+import hnct.lib.access.core.basic.BasicAccessProcessor
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * Store the configuration for the authentication process we want to
@@ -35,7 +37,7 @@ class AuthenticationConfig {
 	/**
 	 * Source of data for user identification
 	 */
-	var credentialSource = "COOKIE"
+	var credentialSource = CredentialSource.COOKIE
 	
 	/**
 	 * The access processor unit name
@@ -57,6 +59,10 @@ class AuthenticationConfig {
 	var failHandler : (Request[_]) => Result = _
 }
 
+object CredentialSource extends Enumeration {
+	val COOKIE, FORM = CredentialSource
+}
+
 /**
  * The authenticate filter accepts a configuration, saying how it use a access processor
  * 
@@ -66,29 +72,27 @@ class AuthenticationConfig {
  * we cannot explicitly supply the needed parameters to it and have to use dependency injection
  * support from play.
  */
-class Authenticate[UT <: User, ART <: AccessRequest](accessFactory : AccessProcessorFactory, config : AuthenticationConfig) extends ActionFilter[PlayAccessRequest] {
+class Authenticate[UT <: User, ART <: AccessRequest](ap : AccessProcessor[UT, ART], config : AuthenticationConfig) 
+	extends ActionFilter[PlayAccessRequest] {
 
 	def filter[A](request: PlayAccessRequest[A]): Future[Option[Result]] = {
 		
-		val ap = accessFactory
-					.get(config.apUnit)
-					.getOrElse(throw new AccessProcessorNotFound("Couldn't find the needed access processor", config.apUnit))	// obtain the access processor
-					.asInstanceOf[AccessProcessor[_, _, ART]]
+		ap.authenticate(request.accessRequest.asInstanceOf[ART]) map { authResult =>
 		
-		val authenticationResult = ap.authenticate(request.accessRequest.asInstanceOf[ART])
+			if (authResult.status != ActionResultCode.SUCCESSFUL) {
+				
+				if (config.rememberLastUrl) {	// if remembering last URL is set, we will record the current URL before returning the result
+					// TODO: remembering the last visited URL to cookie / session
+				}
+				
+				if (config.failHandler == null)
+					Some(Results.Redirect(config.redirectionPath))	// redirect to other page when failed
+				else 
+					Some(config.failHandler(request))
+				
+			} else None	// successfully authenticate, return None so that we can continue
 		
-		if (authenticationResult.status != ActionResultCode.SUCCESSFUL) {
-			
-			if (config.rememberLastUrl) {	// if remembering last URL is set, we will record the current URL before returning the result
-				// TODO: remembering the last visited URL to cookie / session
-			}
-			
-			if (config.failHandler == null)
-				Future.successful(Some(Results.Redirect(config.redirectionPath)))	// redirect to other page when failed
-			else 
-				Future.successful(Some(config.failHandler(request)))
-			
-		} else Future.successful(None)	// successfully authenticate, return None so that we can continue
+		}
 
 	}
   
@@ -105,27 +109,35 @@ class Authenticate[UT <: User, ART <: AccessRequest](accessFactory : AccessProce
  * - BasicAccessRequest
  * - SessionAccessRequest
  */
-class BasicARBuilder(config : AuthenticationConfig, apFactory : AccessProcessorFactory) 
-extends AccessRequestBuilder[Request[_], AccessRequest] with ActionTransformer[Request, PlayAccessRequest] {
+class PlayARBuilder[UT <: User](config : AuthenticationConfig, processor : AccessProcessor[UT, BasicAccessRequest]) 
+	extends AccessRequestBuilder[UT, Request[_], BasicAccessRequest] with ActionTransformer[Request, PlayAccessRequest] {
 	
-	def build(request : Request[_]) = {
-		if (config.credentialSource.equals("COOKIE")) {	// build the credentials from COOKIE
-			
-			// TODO: to extract information from the original request and build the access request
-			new BasicAccessRequest("COOKIE_USER", "COOKIE_PASSWORD")	// TEST CODE, TO BE REMOVED
-			
-		} else {	// build credentials from FORM
-			
-			// TODO: to extract information from the original request and build the access request
-			new BasicAccessRequest("FORM_USER", "FORM_PASSWORD")		// TEST CODE, TO BE REMOVED
-			
+	def build(request : Request[_], processor : AccessProcessor[UT, BasicAccessRequest]) = {
+		
+		config.credentialSource match {
+			case CredentialSource.COOKIE => buildFromCookie(request, processor);
+			case _ => Future.failed(new RuntimeException(s"Unknow credential source is found!"));
 		}
+
+	}
+	
+	private def buildFromCookie(req : Request[_], processor : AccessProcessor[UT, BasicAccessRequest]) : Future[BasicAccessRequest] = {
+		
+		val uname = req.session.get(Const.COOKIE_USERNAME_FIELD)
+		val token = req.session.get(Const.COOKIE_TOKEN_FIELD);
+		
+		if (uname.isEmpty || token.isEmpty) Future.failed(new RuntimeException("""Unable to find username or access token while 
+		  building access request from cookie"""))
+		else
+			processor match {
+				case _ : BasicAccessProcessor => Future.successful(new BasicAccessRequest(uname.get, token.get))
+				case _ => Future.failed(new RuntimeException(s"Unsupported processor type $classOf[processor]"))
+			}
+		
 	}
 
 	def transform[A](request: Request[A]): Future[PlayAccessRequest[A]] = {
-		val ar = build(request)
-		
-		Future.successful(new PlayAccessRequest(request, ar))
+		build(request, processor) map { new PlayAccessRequest(request, _) }
 	}
 	
 }
@@ -133,22 +145,15 @@ extends AccessRequestBuilder[Request[_], AccessRequest] with ActionTransformer[R
 object Authenticate {
 	
 	/**
-	 * The default AccessProcessorFactory, which reads configuration from default files
-	 * For testing purpose, the Authenticate action can be injected using a different access
-	 * processor factory
-	 */
-	private val factory : AccessProcessorFactory = AccessProcessorFactory()
-	
-	/**
 	 * Create an action that check if the user is logged in
 	 * before invoking the block. Use the default AuthenticationConfig
 	 */
-	def apply() = new Authenticate(factory, new AuthenticationConfig)
+	def apply[UT <: User, ART <: AccessRequest](implicit ap : AccessProcessor[UT, ART]) = new Authenticate(ap, new AuthenticationConfig)
 	
 	/**
 	 * Create an action that check if the user is logged in
 	 * with a particular config, before invoking the block.should
 	 */
-	def apply(config : AuthenticationConfig) = new Authenticate(factory, config)
+	def apply[UT <: User, ART <: AccessRequest](implicit ap : AccessProcessor[UT, ART], config : AuthenticationConfig) = new Authenticate(ap, config)
 	
 }

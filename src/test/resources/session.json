@@ -1,13 +1,17 @@
 {
-  "defaultUnit" : "c4",
-  "units" : [
-   {
-    "name" : "c4",
-    "config" : {
-      "_class" : "hnct.lib.session.mem.MemorySessionConfig",
-      "sessionClass" : "hnct.lib.session.mem.MemorySession",
-      "timeout" : -1,
-      "autoRenewOnAccess" : false
-    }
-  } ]
-}
+	"defaultUnit" : "c4",
+	"units" : [
+		{
+			"name" : "c4",
+			"config" : {
+				"_class" : "hnct.lib.session.mem.MemorySessionConfig",
+				"sessionClass" : "hnct.lib.session.mem.MemorySession",
+				"timeOut" : -1,
+				"autoRenewOnAccess" : true
+			}
+		} 
+	],
+	"implementations" : [
+		"hnct.lib.session.mem.MemSessionModule"
+	]
+}	
