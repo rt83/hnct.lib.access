@@ -12,6 +12,10 @@ import hnct.lib.access.api.AccessRequestBuilder
 import hnct.lib.access.core.basic.BasicAccessRequest
 import hnct.lib.access.core.basic.BasicAccessProcessor
 import scala.concurrent.ExecutionContext.Implicits.global
+import hnct.lib.access.api.AccessProcessor
+import hnct.lib.access.api.AccessProcessorContainer
+import com.google.inject.Inject
+import play.data.FormFactory
 
 /**
  * Store the configuration for the authentication process we want to
@@ -109,7 +113,11 @@ class Authenticate[UT <: User, ART <: AccessRequest](ap : AccessProcessor[UT, AR
  * - BasicAccessRequest
  * - SessionAccessRequest
  */
-class PlayARBuilder[UT <: User](config : AuthenticationConfig, processor : AccessProcessor[UT, BasicAccessRequest]) 
+class PlayARBuilder[UT <: User] (
+		config : AuthenticationConfig, 
+		processor : AccessProcessor[UT, BasicAccessRequest], 
+		formFactory : FormFactory)
+		
 	extends AccessRequestBuilder[UT, Request[_], BasicAccessRequest] with ActionTransformer[Request, PlayAccessRequest] {
 	
 	def build(request : Request[_], processor : AccessProcessor[UT, BasicAccessRequest]) = {
@@ -135,6 +143,10 @@ class PlayARBuilder[UT <: User](config : AuthenticationConfig, processor : Acces
 			}
 		
 	}
+	
+	/*private def buildFromForm(req : Request[_], processor : AccessProcessor[UT, BasicAccessRequest]) : Future[BasicAccessRequest] = {
+		
+	}*/
 
 	def transform[A](request: Request[A]): Future[PlayAccessRequest[A]] = {
 		build(request, processor) map { new PlayAccessRequest(request, _) }
@@ -142,18 +154,58 @@ class PlayARBuilder[UT <: User](config : AuthenticationConfig, processor : Acces
 	
 }
 
-object Authenticate {
+class PlayAuth {
+	
+	@Inject var formFactory : FormFactory = _
 	
 	/**
 	 * Create an action that check if the user is logged in
 	 * before invoking the block. Use the default AuthenticationConfig
+	 * 
+	 * The access processor can either be supplied explicitly or provided implicitly from 
+	 * the user of this class. See example for more details
 	 */
-	def apply[UT <: User, ART <: AccessRequest](implicit ap : AccessProcessor[UT, ART]) = new Authenticate(ap, new AuthenticationConfig)
+	def apply[UT <: User](implicit ap : AccessProcessor[UT, BasicAccessRequest]) = {
+		
+		val conf = new AuthenticationConfig
+		
+		(new PlayARBuilder(conf, ap, formFactory)) andThen (new Authenticate(ap, conf))
+		
+	}
 	
 	/**
 	 * Create an action that check if the user is logged in
-	 * with a particular config, before invoking the block.should
+	 * with a particular config.
 	 */
-	def apply[UT <: User, ART <: AccessRequest](implicit ap : AccessProcessor[UT, ART], config : AuthenticationConfig) = new Authenticate(ap, config)
+	def apply[UT <: User](implicit ap : AccessProcessor[UT, BasicAccessRequest], config : AuthenticationConfig) = {
+		new PlayARBuilder(config, ap, formFactory) andThen new Authenticate(ap, config)
+	}
+	
+	/**
+	 * In many cases, access processor are created and configured through the access processor container (so that
+	 * no manual binding is required), the access processor can be retrieved through its name. This method
+	 * create the play auth action using the access processor retrieved using the specified name.
+	 */
+	def apply[UT <: User](apName : String)(implicit apc : AccessProcessorContainer) = {
+		
+		val ap = apc.get[UT, BasicAccessRequest](apName).getOrElse(throw new RuntimeException("Unable to find the access processor "+apName))
+		val conf = new AuthenticationConfig
+		
+		new PlayARBuilder(conf, ap, formFactory) andThen new Authenticate(ap, conf)
+		
+	}
+	
+	/**
+	 * In many cases, access processor are created and configured through the access processor container (so that
+	 * no manual binding is required), the access processor can be retrieved through its name. This method
+	 * create the play auth action using the access processor retrieved using the specified name.
+	 */
+	def apply[UT <: User](apName : String)(implicit apc : AccessProcessorContainer, conf : AuthenticationConfig) = {
+		
+		val ap = apc.get[UT, BasicAccessRequest](apName).getOrElse(throw new RuntimeException("Unable to find the access processor "+apName))
+		
+		new PlayARBuilder(conf, ap, formFactory) andThen new Authenticate(ap, conf)
+		
+	}
 	
 }

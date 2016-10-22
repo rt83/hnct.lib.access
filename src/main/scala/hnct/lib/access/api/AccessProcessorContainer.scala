@@ -46,14 +46,15 @@ class AccessProcessorContainer @Inject() (
 		// print some warning that the default access unit is not defined
 	}
 	
-	def get = {
-		auMap.get(config.defaultUnit)
+	def get[U <: User, A <: AccessRequest] = {	// at runtime user should know what they are using
+		auMap.get(config.defaultUnit).asInstanceOf[Option[AccessProcessor[U,A]]]
 	}
 	
-	def get(unitName : String) : Option[AccessProcessor[_,_]] = {
+	def get[U <: User, A <: AccessRequest](unitName : String) : Option[AccessProcessor[U,A]] = {
 		
-		if (unitName.isEmpty()) get
-		else auMap.get(unitName)
+		if (unitName.isEmpty()) get[U, A]
+		else auMap.get(unitName).asInstanceOf[Option[AccessProcessor[U,A]]]
+		
 	}
 	
 }
