@@ -46,6 +46,6 @@ abstract class AccessProcessorConfig {
 	 * token retrieved from data source. The reason is that passwords are often hashed to other form
 	 * within the database to prevent leakage
 	 */
-	var hasher : Option[Class[_ <: PasswordHasher[_, _]]] = None
+	var hasher : Option[Class[_ <: PasswordHasher]] = None
 	
 }

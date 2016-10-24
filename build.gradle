@@ -8,11 +8,9 @@ group = "hnct"
 ext.scalaVersion = "2.11.8"
 
 dependencies {
-	
+
 	projDependency ':hnct.lib.session', 'hnct:hnct.lib.session:1.0.0-SNAPSHOT', true
-	
 	projDependency ':hnct.lib.config', 'hnct:hnct.lib.config:1.0.0-SNAPSHOT', true
-	
 	projDependency ':hnct.lib.utility', 'hnct:hnct.lib.utility:1.0.0-SNAPSHOT', true
 	
 	// playframework dependencies

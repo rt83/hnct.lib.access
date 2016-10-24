@@ -19,12 +19,12 @@ package hnct.lib.access.api
  * All classes implement this trait should have a constructor with empty parameter
  * list
  */
-trait PasswordHasher[AccessRequestType <: AccessRequest, UserType <: User] {
+trait PasswordHasher {
 	
 	/**
 	 * Hash the password stored inside the AccessRequest using information
 	 * in the access request, together with the user data
 	 */
-	def hash(request : AccessRequestType, userData : UserType) : String
+	def hash(request : AccessRequest, userData : User) : String
 	
 }

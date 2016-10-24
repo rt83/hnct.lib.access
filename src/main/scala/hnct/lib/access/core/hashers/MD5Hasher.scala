@@ -9,7 +9,7 @@ import org.apache.commons.codec.binary.Hex
 /**
  * Simply return a MD5 hash of the password
  */
-class MD5Hasher extends PasswordHasher[AccessRequest, User] {
+class MD5Hasher extends PasswordHasher {
 	def hash(request: AccessRequest, userData: User): String = {
 		
 		val md = MessageDigest.getInstance("MD5")

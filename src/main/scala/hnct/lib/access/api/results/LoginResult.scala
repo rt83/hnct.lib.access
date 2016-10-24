@@ -26,7 +26,7 @@ class LoginResultCode extends ActionResultCode {
 
 object LoginResultCode extends LoginResultCode
 
-trait LoginResult[T <: AccessRequest, U <: User] extends ActionResult[T] {
+trait LoginResult[+T <: AccessRequest, +U <: User] extends ActionResult[T] {
 	
 	val UNLIMITED = -1
 	

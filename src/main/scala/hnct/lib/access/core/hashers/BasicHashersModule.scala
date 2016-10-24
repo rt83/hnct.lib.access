@@ -9,7 +9,7 @@ class BasicHashersModule extends AbstractModule {
 	
 	def configure() = {
 		
-		val sb = Multibinder.newSetBinder(binder(), new TypeLiteral[PasswordHasher[_,_]]() {})
+		val sb = Multibinder.newSetBinder(binder(), classOf[PasswordHasher])
 		sb.addBinding().to(classOf[MD5Hasher])
 		
 	}

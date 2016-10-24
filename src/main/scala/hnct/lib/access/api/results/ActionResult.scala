@@ -14,7 +14,7 @@ class ActionResultCode {
 
 object ActionResultCode extends ActionResultCode
 
-trait ActionResult[T <: AccessRequest] {
+trait ActionResult[+T <: AccessRequest] {
 	
 	/**
 	 * The access request associated with the Action

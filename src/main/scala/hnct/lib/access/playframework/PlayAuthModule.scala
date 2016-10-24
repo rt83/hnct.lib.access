@@ -7,7 +7,6 @@ import hnct.lib.access.core.basic.BasicAccessProcessorModule
 class PlayAuthModule extends AbstractModule {
 
 	def configure = {
-		install(new AccessModule())
 		install(new BasicAccessProcessorModule())
 	}
 	

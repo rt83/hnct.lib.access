@@ -2,22 +2,21 @@ package hnct.lib.access.core.basic
 
 import hnct.lib.access.api.AccessProcessor
 import hnct.lib.access.api.User
-import hnct.lib.access.api.results.LogoutResult
-import hnct.lib.access.api.results.LoginResult
-import hnct.lib.access.api.results.LoginResultCode
+import hnct.lib.access.api.results._
 import hnct.lib.session.api._
 import hnct.lib.access.core.util.AccessKeyGenerator
 import java.util.Date
+
 import hnct.lib.utility.Logable
-import hnct.lib.access.api.results.ActionResultCode
-import hnct.lib.access.api.results.LogoutResultCode
 import hnct.lib.access.api.AccessProcessorConfig
 import hnct.lib.access.api.DataAdapter
 import java.util.Set
+
 import com.google.inject.Inject
 import com.google.inject.assistedinject.Assisted
 import hnct.lib.access.api.PasswordHasher
 import hnct.lib.access.api.AccessRequest
+
 import scala.collection.JavaConversions._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -34,7 +33,7 @@ class BasicAccessProcessor @Inject() (
 		@Assisted() override protected[this] val _config : AccessProcessorConfig,
 		private val sessionContainer : SessionContainer,
 		val adapters : java.util.Set[DataAdapter],
-		val hashers : java.util.Set[PasswordHasher[_, _]]
+		val hashers : java.util.Set[PasswordHasher]
 		
 	) extends AccessProcessor[User, BasicAccessRequest] with Logable {
 	
@@ -56,12 +55,12 @@ class BasicAccessProcessor @Inject() (
 		/** Retrieve password hasher if one is requested in the config. If not, use a default password hasher which don't hash at all **/
 		this.hasher = c.hasher.map { x => asScalaSet(hashers).find(_.getClass().equals(x)).getOrElse(
 				throw new RuntimeException("No Password hasher is bound for "+x.getName())
-			).asInstanceOf[PasswordHasher[BasicAccessRequest, User]] 
+			)
 		} getOrElse {
 			// the default hasher when there is no hasher class defined returns an unchanged token
-			new PasswordHasher[BasicAccessRequest, User] {
+			new PasswordHasher {
 				
-				def hash(request : BasicAccessRequest, user : User) = request.token
+				def hash(request : AccessRequest, user : User) = request.token
 				
 			}
 		}
@@ -211,5 +210,4 @@ class BasicAccessProcessor @Inject() (
 			} getOrElse(Future.failed(new RuntimeException("No session accessor available for the access request! Is the session lib configured correctly?")))
 		}
 	}
-
 }

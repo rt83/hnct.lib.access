@@ -1,6 +1,8 @@
 package hnct.lib.access.playframework
 
-import hnct.lib.access.api.AccessRequest
+import hnct.lib.access.api.{AccessRequest, User}
+import hnct.lib.access.api.results.{ActionResult, LoginResult}
+import hnct.lib.access.core.basic.BasicAccessRequest
 import play.api.mvc.Request
 import play.api.mvc.WrappedRequest
 
@@ -13,4 +15,11 @@ import play.api.mvc.WrappedRequest
  * This class extends Request[A] so that user can treat this as a normal request if wanted, and
  * it'll be more convenient to write code that doesn't relate to access checking
  */
-case class PlayAccessRequest[A](originalRequest : Request[A], val accessRequest : AccessRequest) extends WrappedRequest[A](originalRequest)
+case class PlayHTTPRequest[A](originalRequest : Request[A], accessRequest : BasicAccessRequest)
+  extends WrappedRequest[A](originalRequest) {
+
+  // store the result if any for login and authentication
+  var loginResult : Option[LoginResult[BasicAccessRequest, User]] = None
+  var authResult : Option[ActionResult[BasicAccessRequest]] = None
+
+}

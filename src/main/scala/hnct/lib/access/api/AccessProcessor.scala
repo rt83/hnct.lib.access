@@ -36,7 +36,7 @@ trait AccessProcessor[UT <: User, ART <: AccessRequest] {
 	
 	protected[this] val _config : AccessProcessorConfig
 	
-	var hasher : PasswordHasher[ART, UT] = _
+	var hasher : PasswordHasher = _
 	
 	/**
 	 * Check if an access request is authenticated
