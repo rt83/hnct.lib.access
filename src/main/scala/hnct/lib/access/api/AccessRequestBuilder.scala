@@ -7,8 +7,8 @@ import scala.concurrent.Future
  * of IType and produce an access request of OType or an exception if
  * the build is not working
  */
-trait AccessRequestBuilder[UT <: User, IType, OType <: AccessRequest] {
+trait AccessRequestBuilder[IType] {
 	
-	def build(input : IType, processor : AccessProcessor[UT, OType]) : Future[OType]	// asynchronously build the access request
+	def build(input : IType, processor : AccessProcessor) : Future[AccessRequest]	// asynchronously build the access request
 	
 }

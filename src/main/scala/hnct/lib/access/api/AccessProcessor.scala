@@ -16,9 +16,9 @@ import scala.concurrent.Future
  * 
  * Refer to the container to see how the map binding is used.
  */
-trait AccessProcessorFactory[UT <: User, ART <: AccessRequest] {
+trait AccessProcessorFactory {
 	
-	def create(config : AccessProcessorConfig) : AccessProcessor[UT, ART];
+	def create(config : AccessProcessorConfig) : AccessProcessor;
 	
 }
 
@@ -27,8 +27,11 @@ trait AccessProcessorFactory[UT <: User, ART <: AccessRequest] {
  * and a certain type of user data. AccessRequest to be passed into the AccessProcessor
  * is built by the caller of the AccessProcessor
  */
-trait AccessProcessor[UT <: User, ART <: AccessRequest] {
-	
+trait AccessProcessor {
+
+	val ART	: Class[_ <: AccessRequest]// implementation needs to specify the type of the access request and user it is handling
+	val UT : Class[_ <: User]
+
 	/**
 	 * The data adapter used to retrieve data
 	 */
@@ -43,20 +46,20 @@ trait AccessProcessor[UT <: User, ART <: AccessRequest] {
 	 * An access request is authenticated if it is logged in before using 
 	 * the login method of the access processor
 	 */
-	def authenticate(req : ART) : Future[ActionResult[ART]]
+	def authenticate(req : AccessRequest) : Future[ActionResult]
 	
 	/**
 	 * Perform a login given an AccessRequest. 
 	 * @return the login result, whether the login is successful or not
 	 */
-	def login(req : ART) : Future[LoginResult[ART, UT]]
+	def login(req : AccessRequest) : Future[LoginResult]
 	
 	/**
 	 * When the access processor perform a Login it might have set a timeout
 	 * as of when a successful login expires. If the user wants to renew its login
 	 * call this method of the access processor
 	 */
-	def renewLogin(req : ART) : Future[ActionResult[ART]]
+	def renewLogin(req : AccessRequest) : Future[ActionResult]
 	
 	/**
 	 * Get the login timeout of this access processor
@@ -73,7 +76,7 @@ trait AccessProcessor[UT <: User, ART <: AccessRequest] {
 	/**
 	 * Perform the logout
 	 */
-	def logout(req : ART) : Future[LogoutResult[ART]]
+	def logout(req : AccessRequest) : Future[LogoutResult]
 	
 	/**
 	 * Retrieving the configuration
@@ -96,7 +99,7 @@ trait AccessProcessor[UT <: User, ART <: AccessRequest] {
 	 * this method returns an option instead of returning the instance of SessionAccessor 
 	 * directly
 	 */
-	def loginSessionAccessor(req : ART) : Option[SessionAccessor]
+	def loginSessionAccessor(req : AccessRequest) : Option[SessionAccessor]
 	
 	/* 
 	 * TODO: API for access right checking

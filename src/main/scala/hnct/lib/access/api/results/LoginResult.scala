@@ -26,7 +26,7 @@ class LoginResultCode extends ActionResultCode {
 
 object LoginResultCode extends LoginResultCode
 
-trait LoginResult[+T <: AccessRequest, +U <: User] extends ActionResult[T] {
+trait LoginResult extends ActionResult {
 	
 	val UNLIMITED = -1
 	
@@ -46,6 +46,6 @@ trait LoginResult[+T <: AccessRequest, +U <: User] extends ActionResult[T] {
 	/**
 	 * Return the user data correspond to the username within the access request
 	 */
-	def user : Option[U] = None
+	def user : Option[User] = None
 	
 }

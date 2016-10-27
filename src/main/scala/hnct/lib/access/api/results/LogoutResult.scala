@@ -22,6 +22,6 @@ object LogoutResultCode extends LogoutResultCode {
 
 }
 
-trait LogoutResult[T <: AccessRequest] extends ActionResult[T] {
+trait LogoutResult extends ActionResult {
 	
 }

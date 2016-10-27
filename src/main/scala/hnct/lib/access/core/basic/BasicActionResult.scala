@@ -6,7 +6,7 @@ import hnct.lib.access.api.results.ActionResultCode
 case class BasicActionResult(
 		override val request : BasicAccessRequest, 
 		override val status : ActionResultCode,
-		val message : String) extends ActionResult[BasicAccessRequest]
+		val message : String) extends ActionResult
 
 object BasicActionResult {
 	

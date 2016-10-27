@@ -35,8 +35,13 @@ class BasicAccessProcessor @Inject() (
 		val adapters : java.util.Set[DataAdapter],
 		val hashers : java.util.Set[PasswordHasher]
 		
-	) extends AccessProcessor[User, BasicAccessRequest] with Logable {
-	
+	) extends AccessProcessor with Logable {
+
+	override val ART = classOf[BasicAccessRequest]
+	override val UT = classOf[User]
+
+	implicit private def convertRequest(req : AccessRequest) : BasicAccessRequest = req.asInstanceOf[BasicAccessRequest]
+
 	final val TOKEN_KEY = "_token"
 	
 	{
@@ -76,7 +81,7 @@ class BasicAccessProcessor @Inject() (
 	 * If there is a login session, the access token must be present in the session and must be
 	 * the same as what the user is submitting.
 	 */
-	def authenticate(req: BasicAccessRequest): Future[BasicActionResult] = {
+	override def authenticate(req: AccessRequest): Future[BasicActionResult] = {
 		
 		loginSessionAccessor(req).				// retrieve the login session, if any.
 			fold(Future.successful(BasicActionResult(req, "No accessor available"))) 	// fold = if there is no session, we return failed result
@@ -99,22 +104,22 @@ class BasicAccessProcessor @Inject() (
 	 * Depending on whether session is used (configured in the config file)
 	 * the access token will be written into the session
 	 */
-	def login(req: BasicAccessRequest): Future[LoginResult[BasicAccessRequest, User]] = {
+	def login(req: AccessRequest): Future[LoginResult] = {
 		
 		dataAdapter.findUserByUsername(req.username) map { u =>
-		
+
 			u.fold(BasicLoginResult(req, LoginResultCode.FAILED_USER_NOT_FOUND))(user =>
-				
+
 				if (loginPass(req, user)) {
-					
+
 					val result = BasicLoginResult(req, Some(user), LoginResultCode.SUCCESSFUL, Some(calculateToken(req, Some(user))))
-					
+
 					if (config.useSession)	// if we use session, write the user login info session
 						writeSessionOnSuccessLogin(result)
-					
+
 					result
 				} else BasicLoginResult(req, Some(user), LoginResultCode.FAILED_INVALID_PASSWORD, None)
-				
+
 			)
 			
 		}
@@ -148,7 +153,7 @@ class BasicAccessProcessor @Inject() (
 	 * This method allow the inheriting class to customize the way to write the user
 	 * information into session when login successful
 	 */
-	protected def writeSessionOnSuccessLogin(result : LoginResult[BasicAccessRequest, User]) : Future[Boolean] = {
+	protected def writeSessionOnSuccessLogin(result : LoginResult) : Future[Boolean] = {
 		
 		loginSessionAccessor(result.request) map { accessor =>
 			
@@ -164,7 +169,7 @@ class BasicAccessProcessor @Inject() (
 		
 	}
 
-	def loginSessionAccessor(req: BasicAccessRequest): Option[SessionAccessor] = {
+	def loginSessionAccessor(req: AccessRequest): Option[SessionAccessor] = {
 		if (config.useSession) {
 			config.sessionUnit.fold(sessionContainer.getSession())(sessionContainer.getSession(_)).map { 
 				_.accessor(AccessorDescriptor(config.sessionNamespace, req.username))
@@ -176,7 +181,7 @@ class BasicAccessProcessor @Inject() (
 
 	def loginTimeout_=(timeout: Long): Unit = config.asInstanceOf[BasicAccessProcessorConfig].loginTimeout = timeout
 
-	def logout(req: BasicAccessRequest): Future[LogoutResult[BasicAccessRequest]] = {
+	def logout(req: AccessRequest): Future[LogoutResult] = {
 		
 		authenticate(req) flatMap { actionResult =>
 		
@@ -196,7 +201,7 @@ class BasicAccessProcessor @Inject() (
 	/**
 	 * renew the login
 	 */
-	def renewLogin(req: BasicAccessRequest): Future[BasicActionResult] = {
+	def renewLogin(req: AccessRequest): Future[BasicActionResult] = {
 		
 		authenticate(req) flatMap { actionResult =>
 			if (actionResult.status != ActionResultCode.SUCCESSFUL) 

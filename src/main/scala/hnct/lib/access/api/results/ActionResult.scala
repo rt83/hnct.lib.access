@@ -14,12 +14,12 @@ class ActionResultCode {
 
 object ActionResultCode extends ActionResultCode
 
-trait ActionResult[+T <: AccessRequest] {
+trait ActionResult {
 	
 	/**
 	 * The access request associated with the Action
 	 */
-	def request : T
+	def request : AccessRequest
 	
 	/**
 	 * The status of the action

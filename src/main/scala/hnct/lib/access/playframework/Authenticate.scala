@@ -16,6 +16,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import hnct.lib.access.api.AccessProcessor
 import hnct.lib.access.api.AccessProcessorContainer
 import com.google.inject.Inject
+import hnct.lib.access.core.session.SessionAccessRequest
+import hnct.lib.utility.Logable
+import play.api.data.Forms._
+import play.api.data._
+import play.api.data.format.Formats._
+import play.api.data.validation.Constraints._
 import play.data.FormFactory
 
 /**
@@ -69,7 +75,7 @@ class AuthenticationConfig {
 }
 
 object CredentialSource extends Enumeration {
-	val COOKIE, FORM = CredentialSource
+	val COOKIE, FORM = Value
 }
 
 /**
@@ -81,12 +87,12 @@ object CredentialSource extends Enumeration {
  * we cannot explicitly supply the needed parameters to it and have to use dependency injection
  * support from play.
  */
-class Authenticate[UT <: User, ART <: BasicAccessRequest](ap : AccessProcessor[UT, ART], config : AuthenticationConfig)
+class Authenticate(ap : AccessProcessor, config : AuthenticationConfig)
 	extends ActionFilter[PlayHTTPRequest] {
 
 	def filter[A](request: PlayHTTPRequest[A]): Future[Option[Result]] = {
 
-		ap.authenticate(request.accessRequest.asInstanceOf[ART]) flatMap { authResult =>
+		ap.authenticate(request.accessRequest) flatMap { authResult =>
 
 			request.authResult = Some(authResult)
 
@@ -109,45 +115,83 @@ class Authenticate[UT <: User, ART <: BasicAccessRequest](ap : AccessProcessor[U
   
 }
 
-class DoLogin[U <: User, AR <: BasicAccessRequest](ap : AccessProcessor[U, AR], config : AuthenticationConfig)
-	extends ActionFilter[PlayHTTPRequest] {
+class DoLogin(ap : AccessProcessor, config : AuthenticationConfig)
+	extends ActionFunction[PlayHTTPRequest, PlayHTTPRequest] with Logable {
 
-	override protected def filter[A](request: PlayHTTPRequest[A]): Future[Option[Result]] = {
-		ap.login(request.accessRequest.asInstanceOf[AR]) flatMap { lr =>
+	def filter[A](request: PlayHTTPRequest[A]): Future[Option[Result]] = {
+		ap.login(request.accessRequest) flatMap { lr =>
 
-			request.loginResult = Some(lr)
+			request.loginResult = Some(lr)  // store the login result
 
 			if (lr.status != LoginResultCode.SUCCESSFUL) {
 
 				if (config.failedLoginHandler == null)
 					Future.successful(Some(Results.BadRequest("Login Failed!")))
-				else config.failedAuthHandler(request) map { Some(_) }
+				else config.failedLoginHandler(request) map { Some(_) }
 
-			} else Future.successful(None)
+			} else {
+        Future.successful(None)
+      }
 		}
 	}
+
+  override def invokeBlock[A](request: PlayHTTPRequest[A], block: PlayHTTPRequest[A] => Future[Result]) : Future[Result]= {
+    filter(request) flatMap (filterResult => {
+      if (filterResult.isDefined) Future.successful(filterResult.get)
+      else {
+        block(request) map { blockResult =>
+
+          // add login result information into the cookie if needed
+          request.loginResult.map({ lr =>
+
+            if (lr.status == LoginResultCode.SUCCESSFUL && config.credentialSource == CredentialSource.COOKIE) {  // login successfully
+              var result = blockResult.withSession(
+								request.session + (Const.COOKIE_USERNAME_FIELD -> request.accessRequest.username)
+																+ (Const.COOKIE_TOKEN_FIELD -> lr.token.get)
+							)  // when login successfully, we can assume we have the token already)
+
+							if (request.accessRequest.isInstanceOf[SessionAccessRequest])
+								result = result.withSession(
+									request.session + (Const.COOKIE_SESSION_ID_FIELD -> request.accessRequest.asInstanceOf[SessionAccessRequest].sessionId)
+								)
+
+							result
+            } else blockResult
+          }) get
+
+        }
+      }
+    })
+  }
 
 }
 
 /**
 	* This is the concrete builder that build from request and processor to access request.
 	*
-	* This trait define the shape of the builder. We can provide implementation for each type of access request
-	* which will be imported and implicitly passed to the PlayARBuilder build method
+	* This trait define the shape of the builder. Implementations will be provided through dependency
+	* injection. The two helper PlayAuthARBuilder & PlayLoginARBuilder will obtain instance of the
+	* concrete builder through map binding. Default implementation for BasicAccessProcessor and SessionAccessProcessor
+	* are provided below, and are binded in the DefaultRequestBuilders module
 	*
-	* @tparam UT
-	* @tparam ART
 	*/
-trait ConcreteRequestBuilder[UT <: User, ART <: AccessRequest] {
-	def buildFromCookie(req : Request[_], processor : AccessProcessor[UT, ART]) : Future[ART]
+trait ConcreteRequestBuilder {
+	def buildFromCookie(req : Request[_], processor : AccessProcessor) : Future[AccessRequest]
+
+	def buildFromForm(req : Request[_], processor : AccessProcessor) : Future[AccessRequest]
 }
 
 /**
 	* Provide the building implementation for a class of user type, to be used with BasicAccessRequest
 	*/
-class BasicAccessRequestBuilder extends ConcreteRequestBuilder[User, BasicAccessRequest] {
+class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 
-	override def buildFromCookie(req: Request[_], processor: AccessProcessor[User, BasicAccessRequest]): Future[BasicAccessRequest] = {
+	case class BARForm(username : String, token : String)
+
+	override def buildFromCookie(req: Request[_], processor: AccessProcessor): Future[AccessRequest] = {
+
+    log.debug("Building access request from COOKIE")
+
 		val uname = req.session.get(Const.COOKIE_USERNAME_FIELD)
 		val token = req.session.get(Const.COOKIE_TOKEN_FIELD);
 
@@ -160,6 +204,21 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder[User, BasicAccess
 			}
 	}
 
+	override def buildFromForm(req: Request[_], processor: AccessProcessor): Future[AccessRequest] = {
+
+    log.debug("Building access request from FORM")
+
+		val reqForm = Form(mapping(
+			"username" -> text.verifying(nonEmpty),
+			"token" -> text.verifying(nonEmpty)
+		)(BARForm.apply)(BARForm.unapply)).bindFromRequest()(req)
+
+		if (reqForm.hasErrors) Future.failed(new RuntimeException("Unable to find access request from submitted form"))
+		else {
+			val fv = reqForm.get
+			Future.successful(new BasicAccessRequest(fv.username, fv.token))
+		}
+	}
 }
 
 /**
@@ -173,33 +232,51 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder[User, BasicAccess
  * - BasicAccessRequest
  * - SessionAccessRequest
  */
-class PlayARBuilder[UT <: User, ART <: BasicAccessRequest] (
+abstract class PlayARBuilder (
 		config : AuthenticationConfig, 
-		processor : AccessProcessor[UT, ART],
-		formFactory : FormFactory)(implicit cb : ConcreteRequestBuilder[UT, ART])
+		processor : AccessProcessor, cb : ConcreteRequestBuilder)
 		
-	extends AccessRequestBuilder[UT, Request[_], ART] with ActionTransformer[Request, PlayHTTPRequest] {
-	
-	def build(request : Request[_], processor : AccessProcessor[UT, ART]) = {
-		buildInternal(request, processor)
+	extends AccessRequestBuilder[Request[_]] with ActionRefiner[Request, PlayHTTPRequest] {
+
+	def refine[A](request: Request[A]): Future[Either[Result, PlayHTTPRequest[A]]] = {
+		build(request, processor) map { ar =>
+      Right(new PlayHTTPRequest(request, ar))
+    } fallbackTo(Future.successful(Left(Results.BadRequest("Cannot find access request!"))))
 	}
 
-	private def buildInternal(request : Request[_], processor : AccessProcessor[UT, ART])(implicit cb : ConcreteRequestBuilder[UT, ART]) = {
-		config.credentialSource match {
-			case CredentialSource.COOKIE => cb.buildFromCookie(request, processor);
-			case _ => Future.failed(new RuntimeException(s"Unknow credential source is found!"));
-		}
-	}
+}
 
-	def transform[A](request: Request[A]): Future[PlayHTTPRequest[A]] = {
-		build(request, processor) map { new PlayHTTPRequest(request, _) }
-	}
+class PlayAuthARBuilder (
+    config : AuthenticationConfig,
+    processor : AccessProcessor, cb : ConcreteRequestBuilder) extends PlayARBuilder(config, processor, cb) {
+
+  def build(request : Request[_], processor : AccessProcessor) = {
+    config.credentialSource match {
+      case CredentialSource.COOKIE => cb.buildFromCookie(request, processor);
+      case CredentialSource.FORM => cb.buildFromForm(request, processor);
+      case _ => Future.failed(new RuntimeException(s"Unknown credential source is found!"));
+    }
+  }
+
+}
+
+/**
+  * For login request, we always look into the form to get the login information. The credential source passed from the configuration is ignored.
+  * @param config
+  * @param processor
+  * @param cb
+  */
+class PlayLoginARBuilder (
+    config : AuthenticationConfig,
+    processor : AccessProcessor, cb : ConcreteRequestBuilder) extends PlayARBuilder(config, processor, cb) {
+
+  def build(request : Request[_], processor : AccessProcessor) = cb.buildFromForm(request, processor)
 
 }
 
 class PlayAuth {
 
-	@Inject var formFactory : FormFactory = _
+	@Inject var reqBuilder : java.util.Map[Class[_ <: AccessRequest], ConcreteRequestBuilder] = _
 
 	/**
 	 * Create an action that check if the user is logged in
@@ -208,12 +285,13 @@ class PlayAuth {
 	 * The access processor and configuration can either be supplied explicitly or provided implicitly from
 	 * the user of this class. See example for more details
 	 */
-	def apply[UT <: User, ART <: BasicAccessRequest]()(
-		implicit ap : AccessProcessor[UT, ART],
-							config : AuthenticationConfig,
-							cb : ConcreteRequestBuilder[UT, ART]): ActionFunction[Request, PlayHTTPRequest] = {
+	def apply()(
+		implicit ap : AccessProcessor,
+							config : AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
 
-		new PlayARBuilder(config, ap, formFactory) andThen new Authenticate(ap, config)
+		val cb = reqBuilder.get(ap.ART)
+
+		new PlayAuthARBuilder(config, ap, cb) andThen new Authenticate(ap, config)
 
 	}
 
@@ -222,9 +300,9 @@ class PlayAuth {
 	 * no manual binding is required), the access processor can be retrieved through its name. This method
 	 * create the play auth action using the access processor retrieved using the specified name.
 	 */
-	def apply[UT <: User, ART <: BasicAccessRequest](apName : String)(implicit apc : AccessProcessorContainer, conf : AuthenticationConfig, cb : ConcreteRequestBuilder[UT, ART]): ActionFunction[Request, PlayHTTPRequest] = {
+	def apply(apName : String)(implicit apc : AccessProcessorContainer, conf : AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
 		
-		implicit val ap = apc.get[UT, ART](apName).getOrElse(throw new RuntimeException("Unable to find the access processor "+apName))
+		implicit val ap = apc.get(apName).getOrElse(throw new RuntimeException("Unable to find the access processor "+apName))
 		
 		apply()
 
@@ -232,6 +310,38 @@ class PlayAuth {
 	
 }
 
-object PlayAuth {
-	implicit val basicARTBuilder = new BasicAccessRequestBuilder()
+class PlayLogin {
+
+	@Inject var reqBuilder : java.util.Map[Class[_ <: AccessRequest], ConcreteRequestBuilder] = _
+
+  /**
+    * Create an action that check if the user is logged in
+    * before invoking the block.
+    *
+    * The access processor and configuration can either be supplied explicitly or provided implicitly from
+    * the user of this class. See example for more details
+    */
+  def apply()(
+    implicit ap : AccessProcessor,
+    config : AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
+
+		val cb = reqBuilder.get(ap.ART)
+
+    new PlayLoginARBuilder(config, ap, cb) andThen new DoLogin(ap, config)
+
+  }
+
+  /**
+    * In many cases, access processor are created and configured through the access processor container (so that
+    * no manual binding is required), the access processor can be retrieved through its name. This method
+    * create the play auth action using the access processor retrieved using the specified name.
+    */
+  def apply(apName : String)(implicit apc : AccessProcessorContainer, conf : AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
+
+    implicit val ap = apc.get(apName).getOrElse(throw new RuntimeException("Unable to find the access processor "+apName))
+
+    apply()
+
+  }
+
 }

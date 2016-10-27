@@ -12,13 +12,13 @@ class BasicAccessProcessorModule extends AbstractModule {
 	
 	def configure() = {
 		
-		val mb : MapBinder[String, AccessProcessorFactory[_, _]] = 
-			MapBinder.newMapBinder(binder(), classOf[String], classOf[AccessProcessorFactory[_, _]])
+		val mb : MapBinder[String, AccessProcessorFactory] =
+			MapBinder.newMapBinder(binder(), classOf[String], classOf[AccessProcessorFactory])
 		
 		// install a module that provides an implementation of BasicAccessProcessorFactory
 		install(
 			new FactoryModuleBuilder().
-					implement(new TypeLiteral[AccessProcessor[User, BasicAccessRequest]]() {}, classOf[BasicAccessProcessor]).
+					implement(classOf[AccessProcessor], classOf[BasicAccessProcessor]).
 					build(classOf[BasicAccessProcessorFactory])
 		)
 			

@@ -6,10 +6,10 @@ import hnct.lib.access.api.results.LoginResultCode
 import hnct.lib.access.api.results.ActionResultCode
 
 case class BasicLoginResult(
-		override val request : BasicAccessRequest, 
+		override val request : BasicAccessRequest,
 		override val user : Option[User], 
 		override val status : ActionResultCode,
-		override val token : Option[String]) extends LoginResult[BasicAccessRequest, User]
+		override val token : Option[String]) extends LoginResult
 
 object BasicLoginResult {
 	

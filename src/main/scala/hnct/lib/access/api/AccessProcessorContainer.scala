@@ -15,11 +15,11 @@ class AccessProcessorContainer @Inject() (
 			val config : AccessProcessorContainerConfig,
 			
 			// the map is provided through map binding. Each access processor implementation should provide its factory binding in the map.
-			val factories : Map[String, AccessProcessorFactory[_, _]]
+			val factories : Map[String, AccessProcessorFactory]
 			
 		) extends Logable {
 	
-	private val auMap = mutable.HashMap[String, AccessProcessor[_, _]]()	// access unit map
+	private val auMap = mutable.HashMap[String, AccessProcessor]()	// access unit map
 	
 	// build the session from the configuration
 	config.units.foreach { unit =>
@@ -46,14 +46,14 @@ class AccessProcessorContainer @Inject() (
 		// print some warning that the default access unit is not defined
 	}
 	
-	def get[U <: User, A <: AccessRequest] = {	// at runtime user should know what they are using
-		auMap.get(config.defaultUnit).asInstanceOf[Option[AccessProcessor[U,A]]]
+	def get = {	// at runtime user should know what they are using
+		auMap.get(config.defaultUnit)
 	}
 	
-	def get[U <: User, A <: AccessRequest](unitName : String) : Option[AccessProcessor[U,A]] = {
+	def get(unitName : String) : Option[AccessProcessor] = {
 		
-		if (unitName.isEmpty()) get[U, A]
-		else auMap.get(unitName).asInstanceOf[Option[AccessProcessor[U,A]]]
+		if (unitName.isEmpty()) get
+		else auMap.get(unitName)
 		
 	}
 	
