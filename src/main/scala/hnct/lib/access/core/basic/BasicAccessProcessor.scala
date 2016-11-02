@@ -37,7 +37,7 @@ class BasicAccessProcessor @Inject() (
 		
 	) extends AccessProcessor with Logable {
 
-	override val ART = classOf[BasicAccessRequest]
+	override val ART : Class[_ <: AccessRequest] = classOf[BasicAccessRequest]
 	override val UT = classOf[User]
 
 	implicit private def convertRequest(req : AccessRequest) : BasicAccessRequest = req.asInstanceOf[BasicAccessRequest]
@@ -65,7 +65,7 @@ class BasicAccessProcessor @Inject() (
 			// the default hasher when there is no hasher class defined returns an unchanged token
 			new PasswordHasher {
 				
-				def hash(request : AccessRequest, user : User) = request.token
+				def hash(request : AccessRequest, user : User) = request.token.getOrElse("")
 				
 			}
 		}
@@ -106,23 +106,26 @@ class BasicAccessProcessor @Inject() (
 	 */
 	def login(req: AccessRequest): Future[LoginResult] = {
 		
-		dataAdapter.findUserByUsername(req.username) map { u =>
+		req.username.fold(Future.successful(BasicLoginResult(req, LoginResultCode.FAILED_USER_NOT_FOUND)))( uname =>
+			dataAdapter.findUserByUsername(uname) map { u =>
 
-			u.fold(BasicLoginResult(req, LoginResultCode.FAILED_USER_NOT_FOUND))(user =>
+				u.fold(BasicLoginResult(req, LoginResultCode.FAILED_USER_NOT_FOUND))(user =>
 
-				if (loginPass(req, user)) {
+					if (loginPass(req, user)) {
 
-					val result = BasicLoginResult(req, Some(user), LoginResultCode.SUCCESSFUL, Some(calculateToken(req, Some(user))))
+						val result = BasicLoginResult(req, Some(user), LoginResultCode.SUCCESSFUL, Some(calculateToken(req, Some(user))))
 
-					if (config.useSession)	// if we use session, write the user login info session
-						writeSessionOnSuccessLogin(result)
+						if (config.useSession)	// if we use session, write the user login info session
+							writeSessionOnSuccessLogin(result)
 
-					result
-				} else BasicLoginResult(req, Some(user), LoginResultCode.FAILED_INVALID_PASSWORD, None)
+						result
+					} else BasicLoginResult(req, Some(user), LoginResultCode.FAILED_INVALID_PASSWORD, None)
 
-			)
-			
-		}
+				)
+
+			}
+		)
+
 
 	}
 	
@@ -144,7 +147,7 @@ class BasicAccessProcessor @Inject() (
 	 */
 	protected def calculateToken(req : BasicAccessRequest, user : Option[User]) : String = {
 		
-		AccessKeyGenerator.timeToken(req.username, req.token, new Date(System.currentTimeMillis()))
+		AccessKeyGenerator.timeToken(req.username.get, req.token.get, new Date(System.currentTimeMillis()))
 		
 	}
 	
@@ -171,8 +174,9 @@ class BasicAccessProcessor @Inject() (
 
 	def loginSessionAccessor(req: AccessRequest): Option[SessionAccessor] = {
 		if (config.useSession) {
-			config.sessionUnit.fold(sessionContainer.getSession())(sessionContainer.getSession(_)).map { 
-				_.accessor(AccessorDescriptor(config.sessionNamespace, req.username))
+			if (req.username.isEmpty) None
+			else config.sessionUnit.fold(sessionContainer.getSession())(sessionContainer.getSession(_)).map { ses =>
+				ses.accessor(AccessorDescriptor(config.sessionNamespace, req.username.get))
 			}
 		} else None
 	}

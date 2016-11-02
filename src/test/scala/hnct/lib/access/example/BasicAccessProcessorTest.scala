@@ -35,7 +35,7 @@ object BasicAccessProcessorTest extends Logable {
 		
 		log.info(p.toString())
 				
-		val basicRequest = new BasicAccessRequest("abc", "abc", 2000)	// create a login request, which requires a time out of 2 seconds
+		val basicRequest = new BasicAccessRequest(Some("abc"), Some("abc"), 2000)	// create a login request, which requires a time out of 2 seconds
 		val request = basicRequest
 		
 		val loginResult = p.login(request)	// do the login
@@ -49,7 +49,7 @@ object BasicAccessProcessorTest extends Logable {
 					a.read[String]("_token") map { v =>	println("Read "+v.get.value) }
 				}
 				
-				val authenticateRequest = new BasicAccessRequest("abc", token)
+				val authenticateRequest = new BasicAccessRequest(Some("abc"), Some(token))
 				p.authenticate(authenticateRequest) map { result => println("Authentication result: " + result.status) }
 				
 				Thread.sleep(1000)

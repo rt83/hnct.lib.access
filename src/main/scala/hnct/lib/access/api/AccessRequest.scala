@@ -13,15 +13,7 @@ package hnct.lib.access.api
  */
 trait AccessRequest {
 	
-	private[this] var _username : String = ""
-	private[this] var _token : String = ""
-	
-	// getters and setters
-	
-	def username = _username
-	def username_=(name : String) = {_username = name}
-	
-	def token = _token
-	def token_=(t : String) = {_token = t}
-	
+	val username : Option[String]
+	val token : Option[String]
+
 }

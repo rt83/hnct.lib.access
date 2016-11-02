@@ -13,7 +13,7 @@ class MD5Hasher extends PasswordHasher {
 	def hash(request: AccessRequest, userData: User): String = {
 		
 		val md = MessageDigest.getInstance("MD5")
-		val digested = md.digest(request.token.getBytes("utf-8"))
+		val digested = md.digest(request.token.get.getBytes("utf-8"))
 		
 		new String(Hex.encodeHex(digested))
 		

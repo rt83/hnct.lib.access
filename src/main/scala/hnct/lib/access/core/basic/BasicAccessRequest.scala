@@ -13,11 +13,11 @@ import hnct.lib.access.api.AccessRequest
  * 
  * When it is used for authentication, the time out is not used.
  */
-case class BasicAccessRequest(
-		override val username : String, 
-		override val token : String, 
+class BasicAccessRequest(
+		override val username : Option[String],
+		override val token : Option[String],
 		val timeout : Long) extends AccessRequest {
 	
-	def this(un : String, t : String) = this(un, t, -1)
+	def this(un : Option[String], t : Option[String]) = this(un, t, -1)
 	
 }
