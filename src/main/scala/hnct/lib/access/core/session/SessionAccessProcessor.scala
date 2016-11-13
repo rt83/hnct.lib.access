@@ -20,7 +20,9 @@ class SessionAccessProcessor @Inject()
 
 	implicit def convertRequest(r : AccessRequest) : SessionAccessRequest = r.asInstanceOf[SessionAccessRequest]
 
-	def randomSessionId: String = ???
+	def randomSessionId: String = {
+		java.util.UUID.randomUUID().toString	// use random UUID as the session id
+	}
 
 	override def loginSessionAccessor(req: AccessRequest): Option[SessionAccessor] = {
 		if (config.useSession) {

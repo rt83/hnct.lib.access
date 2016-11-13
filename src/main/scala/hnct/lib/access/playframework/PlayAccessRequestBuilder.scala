@@ -12,10 +12,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 /**
-  * This is the concrete builder that build from request and processor to access request.
+  * This is the concrete builder that have the actual logic to build from request and processor to access request.
   *
   * This trait define the shape of the builder. Implementations will be provided through dependency
-  * injection. The two helper PlayAuthARBuilder & PlayLoginARBuilder will obtain instance of the
+  * injection. The two helper PlayAuthARBuilder & PlayLoginARBuilder are the two builders that actually implemented
+  * the access api's AccessRequestBuilder trait and will obtain instance of the
   * concrete builder through map binding. Default implementation for BasicAccessProcessor and SessionAccessProcessor
   * are provided below, and are binded in the DefaultRequestBuilders module
   *
@@ -64,13 +65,16 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 	}
 }
 
-/**
-  * Provide the building implementation for a class of user type, to be used with BasicAccessRequest
-  */
 class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 
 	case class SARForm(username: Option[String], token: Option[String], sid : Option[String])
-
+	
+	/**
+	  * Build access request from Cookie. This will fail
+	  * @param req
+	  * @param processor
+	  * @return
+	  */
 	override def buildFromCookie(req: Request[_], processor: AccessProcessor): Future[AccessRequest] = {
 
 		log.debug("Building access request from COOKIE")
@@ -97,10 +101,14 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 			"token" -> optional(text),
 			"sid" -> optional(text)
 		)(SARForm.apply)(SARForm.unapply)).bindFromRequest()(req)
-
-		// we also support the case where user visit first and the session id is pre-initialized before login (so that
-		// we can track user session without user logging in. The pre-initialized session id should be prepared so that
-		// it follow the format in the Const.COOKIE_SESSION_ID_FIELD
+		
+		/**
+		  * There are cases where some user access the page, without logging in and we want to track their session.
+		  * To do this, we create a session id without they logging in and probably save it into the cookie.
+		  * Because of this, when user submit login form (or authenticate using form) the access request need to use
+		  * the session that already created. Hence, if the session id is not available in the login form
+		  * we will build the request with pre-created session id from cookie.
+		  */
 		val sid = req.session.get(Const.COOKIE_SESSION_ID_FIELD)
 
 		if (reqForm.hasErrors) Future.failed(new RuntimeException("Unable to find access request from submitted form"))

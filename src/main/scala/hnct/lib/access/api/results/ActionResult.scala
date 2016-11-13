@@ -5,6 +5,8 @@ import hnct.lib.access.api.AccessRequest
 class ActionResultCode {
 	final case object SUCCESSFUL extends ActionResultCode 
 	final case object FAILED extends ActionResultCode
+	
+	final case object FAILED_NOT_AUTHENTICATED extends AuthenticateResultCode
 
 	override def toString() = {
 		(getClass.getName.stripSuffix("$").split('.')).last.split('$').last
