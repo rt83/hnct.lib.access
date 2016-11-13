@@ -84,7 +84,7 @@ class BasicAccessProcessor @Inject() (
 	override def authenticate(req: AccessRequest): Future[BasicActionResult] = {
 		
 		loginSessionAccessor(req).				// retrieve the login session, if any.
-			fold(Future.successful(BasicActionResult(req, "No accessor available"))) 	// fold = if there is no session, we return failed result
+			fold(Future.successful(BasicActionResult(req, AuthenticateResultCode.FAILED_SESSION_NOT_FOUND, "No accessor available"))) 	// fold = if there is no session, we return failed result
 			{ accessor => accessor.read[String](TOKEN_KEY) map {	// if have accessor, read the token, this is a future 
 
 					_.map { sv =>			// the future hold an Option[SessionValue[String]], have to map it to the action result

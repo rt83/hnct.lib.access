@@ -48,6 +48,14 @@ class AuthenticationConfig {
 	var redirectionPath = "/";
 
 	/**
+	  * What to do when we have authentication failure.
+	  * If this is set to false, we will either redirect or invoke the auth failed handler.
+	  *
+	  * If set to true, the controller method will be invoked
+	  */
+	var continueOnAuthFailed = false
+
+	/**
 	  * The handler which will be called when authentication failed
 	  *
 	  * This handler should provide the final result to be returned to the client
@@ -88,11 +96,14 @@ class Authenticate(ap: AccessProcessor, config: AuthenticationConfig)
 					// TODO: remembering the last visited URL to cookie / session
 				}
 
-				if (config.failedAuthHandler == null)
-					Future.successful(Some(Results.Redirect(config.redirectionPath))) // redirect to other page when failed
-				else
-					config.failedAuthHandler(request) map { result => Some(result) }
-
+				if (config.continueOnAuthFailed)	// if this is true, we don't invoke redirection or fail handler
+					Future.successful(None)
+				else {
+					if (config.failedAuthHandler == null)
+						Future.successful(Some(Results.Redirect(config.redirectionPath))) // redirect to other page when failed
+					else
+						config.failedAuthHandler(request) map { result => Some(result) }
+				}
 			} else Future.successful(None) // successfully authenticate, return None so that we can continue
 
 		}

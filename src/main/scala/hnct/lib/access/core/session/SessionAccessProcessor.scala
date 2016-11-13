@@ -18,8 +18,13 @@ class SessionAccessProcessor @Inject()
 
 	override val ART : Class[_ <: AccessRequest] = classOf[SessionAccessRequest]
 
+	implicit def convertRequest(r : AccessRequest) : SessionAccessRequest = r.asInstanceOf[SessionAccessRequest]
+
+	def randomSessionId: String = ???
+
 	override def loginSessionAccessor(req: AccessRequest): Option[SessionAccessor] = {
 		if (config.useSession) {
+
 			val r = req.asInstanceOf[SessionAccessRequest]
 
 			if (r.sessionId.isEmpty) None
