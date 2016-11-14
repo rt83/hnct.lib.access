@@ -157,7 +157,7 @@ abstract class PlayARBuilder
 	override def invokeBlock[A](request : Request[A], block : (PlayHTTPRequest[A] => Future[Result])) = {
 		refine(request).flatMap { refined =>	// refine the request
 			refined.fold(Future.successful(_),	// if the refining process return a result, use it
-			{ req =>							// if not, we invoke the block
+			{ implicit req =>							// if not, we invoke the block
 				
 				// if the incoming session never have a session id, we try to get it from the refined access request
 				if (req.session.get(Const.COOKIE_SESSION_ID_FIELD).isEmpty)
@@ -165,7 +165,7 @@ abstract class PlayARBuilder
 						// if the access request is not null, and is a session access request, and it has a non-empty session id registered
 						// write the session id to the cookie of the returning result
 						case x : SessionAccessRequest if (x != null && !x.sessionId.isEmpty) => block(req) map {
-							result => result.withSession(req.session + Const.COOKIE_SESSION_ID_FIELD -> x.sessionId.get)
+							result => result.withSession(result.session + (Const.COOKIE_SESSION_ID_FIELD -> x.sessionId.get))
 						}
 						case _ => block(req)
 					}

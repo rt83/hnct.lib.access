@@ -15,7 +15,6 @@ dependencies {
 	
 	// playframework dependencies
 	compile 'com.typesafe.play:play_2.11:2.5.8'
-	compile 'com.typesafe.play:play-java_2.11:2.5.8'
 	
 	compile 'commons-codec:commons-codec:1.10'
 	
