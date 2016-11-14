@@ -63,8 +63,20 @@ class AuthenticationConfig {
 	var failedAuthHandler: (PlayHTTPRequest[_]) => Future[Result] = _
 
 	var failedLoginHandler: (PlayHTTPRequest[_]) => Future[Result] = _
-
-
+	
+	/**
+	  * Building access request might fail. We might want to send results back to users
+	  * instead of just send a fixed fail message
+	  */
+	var requestBuildFailedHandler: (Throwable => Future[Result]) = _
+	
+	/**
+	  * This is used together with the SessionAccessRequestBuilder
+	  * Whether or not to initialize the session id if there is none
+	  * If this is set to true, the SessionAccessRequestBuilder will initialize
+	  * the session id using the SessionAccessProcessor
+	  */
+	var initializeSessionId = false
 }
 
 object CredentialSource extends Enumeration {
