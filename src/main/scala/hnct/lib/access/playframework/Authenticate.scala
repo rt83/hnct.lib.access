@@ -156,16 +156,16 @@ class DoLogin(ap: AccessProcessor, config: AuthenticationConfig)
 					request.loginResult.map({ lr =>
 
 						if (lr.status == LoginResultCode.SUCCESSFUL && config.credentialSource == CredentialSource.COOKIE) {
+							
 							// login successfully
-							var result = blockResult.withSession(
-								request.session + (Const.COOKIE_USERNAME_FIELD -> request.accessRequest.username.get)
-									+ (Const.COOKIE_TOKEN_FIELD -> lr.token.get)
-							) // when login successfully, we can assume we have the token already)
-
+							var result = blockResult.addingToSession(
+								(Const.COOKIE_USERNAME_FIELD -> request.accessRequest.username.get),
+									(Const.COOKIE_TOKEN_FIELD -> lr.token.get)
+							)(request) // when login successfully, we can assume we have the token already)
 							if (request.accessRequest.isInstanceOf[SessionAccessRequest])
-								result = result.withSession(
-									request.session + (Const.COOKIE_SESSION_ID_FIELD -> request.accessRequest.asInstanceOf[SessionAccessRequest].sessionId.get)
-								)
+								result = result.addingToSession(
+									(Const.COOKIE_SESSION_ID_FIELD -> request.accessRequest.asInstanceOf[SessionAccessRequest].sessionId.get)
+								)(request)
 
 							result
 						} else blockResult

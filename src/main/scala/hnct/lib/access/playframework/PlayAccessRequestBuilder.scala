@@ -34,8 +34,6 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 
 	override def buildFromCookie(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest] = {
 
-		log.debug("Building access request from COOKIE")
-
 		val uname = req.session.get(Const.COOKIE_USERNAME_FIELD)
 		val token = req.session.get(Const.COOKIE_TOKEN_FIELD);
 
@@ -50,8 +48,6 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 	}
 
 	override def buildFromForm(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest] = {
-
-		log.debug("Building access request from FORM")
 
 		val reqForm = Form(mapping(
 			"username" -> optional(text),
@@ -78,8 +74,6 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 	  */
 	override def buildFromCookie(req: Request[_], processor: AccessProcessor, config: AuthenticationConfig): Future[AccessRequest] = {
 
-		log.debug("Building access request from COOKIE")
-
 		val uname = req.session.get(Const.COOKIE_USERNAME_FIELD)
 		val token = req.session.get(Const.COOKIE_TOKEN_FIELD)
 		val sid = req.session.get(Const.COOKIE_SESSION_ID_FIELD)
@@ -101,8 +95,6 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 	}
 
 	override def buildFromForm(req: Request[_], processor: AccessProcessor, config: AuthenticationConfig): Future[AccessRequest] = {
-
-		log.debug("Building access request from FORM")
 
 		val reqForm = Form(mapping(
 			"username" -> optional(text),

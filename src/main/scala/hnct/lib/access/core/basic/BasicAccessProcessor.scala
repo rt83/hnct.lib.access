@@ -88,8 +88,7 @@ class BasicAccessProcessor @Inject() (
 			{ accessor => accessor.read[String](TOKEN_KEY) map {	// if have accessor, read the token, this is a future 
 
 					_.map { sv =>			// the future hold an Option[SessionValue[String]], have to map it to the action result
-					
-						if (sv.value.equals(req.token))
+						if (req.token.isDefined && sv.value.equals(req.token.get))
 							BasicActionResult(req, ActionResultCode.SUCCESSFUL, "Authentication successful!")
 						else BasicActionResult(req, "Access token is not correct!")
 						
@@ -162,7 +161,6 @@ class BasicAccessProcessor @Inject() (
 			
 			result.token map { token =>
 				val timeout = if (result.request.timeout == -1) loginTimeout else result.request.timeout
-				
 				if (timeout == -1) accessor.write(TOKEN_KEY, token)	// implicit conversion to session value is used here
 				else accessor.write(TOKEN_KEY, (token, timeout)) 	// implicit conversion to session value is used here	
 				
