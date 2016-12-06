@@ -89,8 +89,6 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 			}
 			case _ => Future.failed(new RuntimeException(s"Unsupported processor type $classOf[processor]"))
 		}
-		
-		
 			
 	}
 
@@ -114,7 +112,15 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 			  * we will build the request with pre-created session id from cookie. If the cookie itself don't have, we will
 			  * try to use the access processor to build it, if the access processor is a SessionAccessProcessor
 			  */
-			val sid = fv.sid orElse req.session.get(Const.COOKIE_SESSION_ID_FIELD) orElse {
+			val sid = fv.sid orElse {
+				/**
+					* When we login, and we allow re-using the previous login session id then
+					* we have to extract the session id from Cookie
+					*/
+				if (!config.isLogin || config.reuseOldSessionOnLogin)
+					req.session.get(Const.COOKIE_SESSION_ID_FIELD)
+				else None
+			} orElse {
 				if (config.initializeSessionId)
 					processor match {
 						case x : SessionAccessProcessor => Some(x.randomSessionId)
@@ -157,7 +163,7 @@ abstract class PlayARBuilder
 						// if the access request is not null, and is a session access request, and it has a non-empty session id registered
 						// write the session id to the cookie of the returning result
 						case x : SessionAccessRequest if (x != null && !x.sessionId.isEmpty) => block(req) map {
-							result => result.withSession(result.session + (Const.COOKIE_SESSION_ID_FIELD -> x.sessionId.get))
+							result => result.addingToSession(Const.COOKIE_SESSION_ID_FIELD -> x.sessionId.get)
 						}
 						case _ => block(req)
 					}

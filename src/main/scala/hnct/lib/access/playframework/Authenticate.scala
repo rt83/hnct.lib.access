@@ -77,6 +77,21 @@ class AuthenticationConfig {
 	  * the session id using the SessionAccessProcessor
 	  */
 	var initializeSessionId = false
+	
+	/**
+		* When login, there might be old session being submitted. This parameter
+		* controls whether we are going to reuse it or not
+		*
+		* Applicable to SessionAccessProcessor
+		*/
+	var reuseOldSessionOnLogin = false
+	
+	/**
+		* Whether or not this configuration is being used for login or authentication
+		*
+		* Applicable to SessionAccessProcessor (used in SessionAccessRequestBuilder)
+		*/
+	var isLogin = false
 }
 
 object CredentialSource extends Enumeration {
@@ -147,6 +162,7 @@ class DoLogin(ap: AccessProcessor, config: AuthenticationConfig)
 	}
 
 	override def invokeBlock[A](request: PlayHTTPRequest[A], block: PlayHTTPRequest[A] => Future[Result]): Future[Result] = {
+		
 		filter(request) flatMap (filterResult => {
 			if (filterResult.isDefined) Future.successful(filterResult.get)
 			else {
