@@ -48,6 +48,16 @@ class PlayAuth {
 		apply()
 
 	}
+	
+	def logout(
+		implicit ap: AccessProcessor,
+		config: AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
+		
+		val cb = reqBuilder.get(ap.ART)
+		
+		new PlayAuthARBuilder(config, ap, cb) andThen new DoLogout(ap, config)
+		
+	}
 
 }
 

@@ -1,7 +1,7 @@
 package hnct.lib.access.playframework
 
 import hnct.lib.access.api.AccessProcessor
-import hnct.lib.access.api.results.{ActionResultCode, LoginResultCode}
+import hnct.lib.access.api.results.{ActionResultCode, LoginResultCode, LogoutResultCode}
 import hnct.lib.access.core.session.SessionAccessRequest
 import hnct.lib.utility.Logable
 import play.api.mvc._
@@ -138,6 +138,65 @@ class Authenticate(ap: AccessProcessor, config: AuthenticationConfig)
 	}
 
 }
+
+/**
+	*
+	* @param ap
+	* @param config
+	*/
+class DoLogout(ap: AccessProcessor, config: AuthenticationConfig)
+	extends ActionFunction[PlayHTTPRequest, PlayHTTPRequest] {
+	
+	def refine[A](request: PlayHTTPRequest[A]): Future[Either[Result, PlayHTTPRequest[A]]] = {
+		
+		ap.logout(request.accessRequest) flatMap { logoutResult =>
+			
+			request.logoutResult = Some(logoutResult)
+
+			if (logoutResult.status != LogoutResultCode.SUCCESSFUL) {
+				
+				if (logoutResult.status == LogoutResultCode.FAILED_NOT_AUTHENTICATED) {
+					if (config.continueOnAuthFailed)  // if this is true, we don't invoke redirection or fail handler
+						Future.successful(Right(request))
+					else {
+						if (config.failedAuthHandler == null)
+							Future.successful(Left(Results.Redirect(config.redirectionPath))) // redirect to other page when failed
+						else
+							config.failedAuthHandler(request) map { result => Left(result) }
+					}
+				} else Future.successful(Right(request)) // if not successfully logged out, and the reason is not because of authentication... currently we don't handle, the controller will have to handle this.
+				
+			} else Future.successful(Right(request)) // successfully logged out, return the request itself so that we can continue
+
+		}
+
+	}
+	
+	override def invokeBlock[A](request: PlayHTTPRequest[A], block: PlayHTTPRequest[A] => Future[Result]): Future[Result] = {
+		
+		refine(request) flatMap (filterResult => {
+			if (filterResult.isLeft) Future.successful(filterResult.left.get)
+			else {
+				block(request) map { blockResult =>
+					
+					// remove the cookie information if needed
+					request.logoutResult.map({ lr =>
+						
+						if (lr.status == LogoutResultCode.SUCCESSFUL && config.credentialSource == CredentialSource.COOKIE) {
+							// logout successfully, removing the possible cookies
+							blockResult.removingFromSession(Const.COOKIE_USERNAME_FIELD,
+								Const.COOKIE_TOKEN_FIELD, Const.COOKIE_SESSION_ID_FIELD)(request)
+							
+						} else blockResult
+					}) get
+					
+				}
+			}
+		})
+	}
+	
+}
+
 
 class DoLogin(ap: AccessProcessor, config: AuthenticationConfig)
 	extends ActionFunction[PlayHTTPRequest, PlayHTTPRequest] with Logable {

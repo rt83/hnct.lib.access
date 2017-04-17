@@ -1,7 +1,7 @@
 package hnct.lib.access.playframework
 
 import hnct.lib.access.api.{AccessRequest, User}
-import hnct.lib.access.api.results.{ActionResult, LoginResult}
+import hnct.lib.access.api.results.{ActionResult, LoginResult, LogoutResult}
 import hnct.lib.access.core.basic.BasicAccessRequest
 import play.api.mvc.Request
 import play.api.mvc.WrappedRequest
@@ -21,5 +21,6 @@ case class PlayHTTPRequest[A](originalRequest : Request[A], accessRequest : Acce
   // store the result if any for login and authentication
   var loginResult : Option[LoginResult] = None
   var authResult : Option[ActionResult] = None
+  var logoutResult : Option[LogoutResult] = None
 
 }
