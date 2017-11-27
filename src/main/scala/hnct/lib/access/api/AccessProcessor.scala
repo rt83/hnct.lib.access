@@ -45,21 +45,24 @@ trait AccessProcessor {
 	 * Check if an access request is authenticated
 	 * An access request is authenticated if it is logged in before using 
 	 * the login method of the access processor
+		*
+		* Authentication request might come from different source and not all the time, the access
+		* request building is successful. Hence, the signature is Option[AccessRequest]
 	 */
-	def authenticate(req : AccessRequest) : Future[ActionResult]
+	def authenticate(req : Option[AccessRequest]) : Future[ActionResult]
 	
 	/**
 	 * Perform a login given an AccessRequest. 
 	 * @return the login result, whether the login is successful or not
 	 */
-	def login(req : AccessRequest) : Future[LoginResult]
+	def login(req : Option[AccessRequest]) : Future[LoginResult]
 	
 	/**
 	 * When the access processor perform a Login it might have set a timeout
 	 * as of when a successful login expires. If the user wants to renew its login
 	 * call this method of the access processor
 	 */
-	def renewLogin(req : AccessRequest) : Future[ActionResult]
+	def renewLogin(req : Option[AccessRequest]) : Future[ActionResult]
 	
 	/**
 	 * Get the login timeout of this access processor
@@ -76,7 +79,7 @@ trait AccessProcessor {
 	/**
 	 * Perform the logout
 	 */
-	def logout(req : AccessRequest) : Future[LogoutResult]
+	def logout(req : Option[AccessRequest]) : Future[LogoutResult]
 	
 	/**
 	 * Retrieving the configuration

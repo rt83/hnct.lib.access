@@ -54,6 +54,25 @@ class AuthenticationConfig {
 	  * If set to true, the controller method will be invoked
 	  */
 	var continueOnAuthFailed = false
+	
+	/**
+		* What to do when we can't build access request from client's provided information
+		*
+		* This parameter is only important when requestBuildFailedHandler is not specified.
+		*
+		* Specifically, if this is set to true and no request can be built, the authentication / login
+		* process will continue and set an action result in the http request.
+		* The Option[AccessRequest] within the http request and within the action
+		* result will be NONE. The authentication / login / logout result will have code FAILED_REQUEST_NOT_FOUND. If this is
+		* an authentication request, continueOnAuthFailed will be checked and rule for auth failed will apply.
+		*
+		* If this flag is set to false, and no handler present, exception will be thrown.
+		*
+		* By default this is set to true, so that we consider the case of not able to build access request as
+		* a normal authentication failure.
+		*
+		*/
+	var continueOnRequestBuildFailed = true
 
 	/**
 	  * The handler which will be called when authentication failed
@@ -234,7 +253,7 @@ class DoLogin(ap: AccessProcessor, config: AuthenticationConfig)
 							
 							// login successfully
 							var result = blockResult.addingToSession(
-								(Const.COOKIE_USERNAME_FIELD -> request.accessRequest.username.get),
+								(Const.COOKIE_USERNAME_FIELD -> request.accessRequest.get.username.get),
 									(Const.COOKIE_TOKEN_FIELD -> lr.token.get)
 							)(request) // when login successfully, we can assume we have the token already)
 							if (request.accessRequest.isInstanceOf[SessionAccessRequest])

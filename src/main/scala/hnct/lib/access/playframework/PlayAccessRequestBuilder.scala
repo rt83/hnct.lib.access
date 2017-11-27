@@ -181,9 +181,13 @@ abstract class PlayARBuilder
 		
 		f.recoverWith {
 			case e : Throwable => {
-
+				
 				if (config.requestBuildFailedHandler != null)
 					config.requestBuildFailedHandler(e).map(Left(_))
+				else if (config.continueOnRequestBuildFailed) {
+					val newReq = new PlayHTTPRequest(request)
+					Future.successful(Right(newReq))
+				}
 				else throw e
 			}
 		}

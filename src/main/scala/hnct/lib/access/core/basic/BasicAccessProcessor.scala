@@ -1,25 +1,18 @@
 package hnct.lib.access.core.basic
 
-import hnct.lib.access.api.AccessProcessor
-import hnct.lib.access.api.User
-import hnct.lib.access.api.results._
-import hnct.lib.session.api._
-import hnct.lib.access.core.util.AccessKeyGenerator
 import java.util.Date
-
-import hnct.lib.utility.Logable
-import hnct.lib.access.api.AccessProcessorConfig
-import hnct.lib.access.api.DataAdapter
-import java.util.Set
 
 import com.google.inject.Inject
 import com.google.inject.assistedinject.Assisted
-import hnct.lib.access.api.PasswordHasher
-import hnct.lib.access.api.AccessRequest
+import hnct.lib.access.api._
+import hnct.lib.access.api.results._
+import hnct.lib.access.core.util.AccessKeyGenerator
+import hnct.lib.session.api._
+import hnct.lib.utility.Logable
 
 import scala.collection.JavaConversions._
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /**
  * A basic implementation of access processor. It requires a configuration to be made available through
@@ -81,21 +74,28 @@ class BasicAccessProcessor @Inject() (
 	 * If there is a login session, the access token must be present in the session and must be
 	 * the same as what the user is submitting.
 	 */
-	override def authenticate(req: AccessRequest): Future[BasicActionResult] = {
-		
-		loginSessionAccessor(req).				// retrieve the login session, if any.
-			fold(Future.successful(BasicActionResult(req, AuthenticateResultCode.FAILED_SESSION_NOT_FOUND, "No accessor available"))) 	// fold = if there is no session, we return failed result
-			{ accessor => accessor.read[String](TOKEN_KEY) map {	// if have accessor, read the token, this is a future 
-
-					_.map { sv =>			// the future hold an Option[SessionValue[String]], have to map it to the action result
-						if (req.token.isDefined && sv.value.equals(req.token.get))
-							BasicActionResult(req, ActionResultCode.SUCCESSFUL, "Authentication successful!")
-						else BasicActionResult(req, "Access token is not correct!")
+	override def authenticate(req: Option[AccessRequest]): Future[BasicActionResult] = {
+		req map { r =>
+			
+			val br = r.asInstanceOf[BasicAccessRequest]
+			
+			loginSessionAccessor(br).        // retrieve the login session, if any.
+				fold(Future.successful(BasicActionResult(Some(br), AuthenticateResultCode.FAILED_SESSION_NOT_FOUND, "No accessor available")))  // fold = if there is no session, we return failed result
+			{
+				accessor => accessor.read[String](TOKEN_KEY) map {  // if have accessor, read the token, this is a future
+					
+					_.map { sv =>      // the future hold an Option[SessionValue[String]], have to map it to the action result
+						if (r.token.isDefined && sv.value.equals(r.token.get))
+							BasicActionResult(Some(br), ActionResultCode.SUCCESSFUL, "Authentication successful!")
+						else BasicActionResult(Some(br), "Access token is not correct!")
 						
-					} getOrElse(BasicActionResult(req, "Access token not found!"))	// if the read doesn't return any session value, we return failed by default
+					} getOrElse (BasicActionResult(Some(br), "Access token not found!"))  // if the read doesn't return any session value, we return failed by default
 					
 				}
 			}
+		} getOrElse {
+			Future.successful(BasicActionResult(None, AuthenticateResultCode.FAILED_REQUEST_NOT_FOUND, "No access request found"))
+		}
 	}
 
 	/**
@@ -103,27 +103,33 @@ class BasicAccessProcessor @Inject() (
 	 * Depending on whether session is used (configured in the config file)
 	 * the access token will be written into the session
 	 */
-	def login(req: AccessRequest): Future[LoginResult] = {
-		
-		req.username.fold(Future.successful(BasicLoginResult(req, LoginResultCode.FAILED_USER_NOT_FOUND)))( uname =>
-			dataAdapter.findUserByUsername(uname) map { u =>
-
-				u.fold(BasicLoginResult(req, LoginResultCode.FAILED_USER_NOT_FOUND))(user =>
-
-					if (loginPass(req, user)) {
-
-						val result = BasicLoginResult(req, Some(user), LoginResultCode.SUCCESSFUL, Some(calculateToken(req, Some(user))))
-
-						if (config.useSession)	// if we use session, write the user login info session
-							writeSessionOnSuccessLogin(result)
-
-						result
-					} else BasicLoginResult(req, Some(user), LoginResultCode.FAILED_INVALID_PASSWORD, None)
-
-				)
-
-			}
-		)
+	override def login(req: Option[AccessRequest]): Future[LoginResult] = {
+		req map { r =>
+			
+			val br = r.asInstanceOf[BasicAccessRequest]
+			
+			br.username.fold(Future.successful(BasicLoginResult(Some(br), LoginResultCode.FAILED_USER_NOT_FOUND)))(uname =>
+				dataAdapter.findUserByUsername(uname) map { u =>
+					
+					u.fold(BasicLoginResult(Some(br), LoginResultCode.FAILED_USER_NOT_FOUND))(user =>
+						
+						if (loginPass(br, user)) {
+							
+							val result = BasicLoginResult(Some(br), Some(user), LoginResultCode.SUCCESSFUL, Some(calculateToken(br, Some(user))))
+							
+							if (config.useSession)  // if we use session, write the user login info session
+								writeSessionOnSuccessLogin(result)
+							
+							result
+						} else BasicLoginResult(Some(br), Some(user), LoginResultCode.FAILED_INVALID_PASSWORD, None)
+					
+					)
+					
+				}
+			)
+		} getOrElse {
+			Future.successful(BasicLoginResult(None, None, LoginResultCode.FAILED_REQUEST_NOT_FOUND, None))
+		}
 
 
 	}
@@ -154,13 +160,15 @@ class BasicAccessProcessor @Inject() (
 	 * Write the user information to session
 	 * This method allow the inheriting class to customize the way to write the user
 	 * information into session when login successful
+		*
+		* This method should only be called when user has successfully logged in.
 	 */
 	protected def writeSessionOnSuccessLogin(result : LoginResult) : Future[Boolean] = {
 		
-		loginSessionAccessor(result.request) map { accessor =>
+		loginSessionAccessor(result.request.get) map { accessor =>
 			
 			result.token map { token =>
-				val timeout = if (result.request.timeout == -1) loginTimeout else result.request.timeout
+				val timeout = if (result.request.get.timeout == -1) loginTimeout else result.request.get.timeout
 				if (timeout == -1) accessor.write(TOKEN_KEY, token)	// implicit conversion to session value is used here
 				else accessor.write(TOKEN_KEY, (token, timeout)) 	// implicit conversion to session value is used here	
 				
@@ -183,38 +191,49 @@ class BasicAccessProcessor @Inject() (
 
 	def loginTimeout_=(timeout: Long): Unit = config.asInstanceOf[BasicAccessProcessorConfig].loginTimeout = timeout
 
-	def logout(req: AccessRequest): Future[LogoutResult] = {
+	override def logout(req: Option[AccessRequest]): Future[LogoutResult] = {
 		
-		authenticate(req) flatMap { actionResult =>
-		
-			if (actionResult.status != ActionResultCode.SUCCESSFUL) 
-				Future.successful(new BasicLogoutResult(req, LogoutResultCode.FAILED_NOT_AUTHENTICATED))
-			else loginSessionAccessor(req) map { accessor =>		// if we have the accessor
+		req map { r =>
+			val br = r.asInstanceOf[BasicAccessRequest]
+			
+			authenticate(req) flatMap { actionResult =>
 				
-				accessor.delete(TOKEN_KEY) map { deleteResult =>
-					if (deleteResult) new BasicLogoutResult(req, LogoutResultCode.SUCCESSFUL)
-					else new BasicLogoutResult(req, LogoutResultCode.FAILED_UNABLE_TO_REMOVE_SESSION_KEY)
-				}
+				if (actionResult.status != ActionResultCode.SUCCESSFUL)
+					Future.successful(new BasicLogoutResult(Some(br), LogoutResultCode.FAILED_NOT_AUTHENTICATED))
+				else loginSessionAccessor(br) map { accessor =>    // if we have the accessor
 					
-			} getOrElse(Future.failed(new RuntimeException("No session accessor available for the access request! Is the session lib configured correctly?")))
+					accessor.delete(TOKEN_KEY) map { deleteResult =>
+						if (deleteResult) new BasicLogoutResult(Some(br), LogoutResultCode.SUCCESSFUL)
+						else new BasicLogoutResult(Some(br), LogoutResultCode.FAILED_UNABLE_TO_REMOVE_SESSION_KEY)
+					}
+					
+				} getOrElse (Future.failed(new RuntimeException("No session accessor available for the access request! Is the session lib configured correctly?")))
+			}
+		} getOrElse {
+			Future.successful(new BasicLogoutResult(None, LogoutResultCode.FAILED_REQUEST_NOT_FOUND))
 		}
 	}
 	
 	/**
 	 * renew the login
 	 */
-	def renewLogin(req: AccessRequest): Future[BasicActionResult] = {
+	override def renewLogin(req: Option[AccessRequest]): Future[BasicActionResult] = {
 		
-		authenticate(req) flatMap { actionResult =>
-			if (actionResult.status != ActionResultCode.SUCCESSFUL) 
-				Future.successful(BasicActionResult(req, LogoutResultCode.FAILED_NOT_AUTHENTICATED, "Cannot renew login for unauthenticated request!"))
-			
-			else loginSessionAccessor(req) map { accessor =>
-				accessor.renew(TOKEN_KEY) map { renewResult =>	// renew the time to live of the token in the session
-					if (renewResult) BasicActionResult(req, ActionResultCode.SUCCESSFUL, "Successfully renew the login!")
-					else BasicActionResult(req, "Unable to renew to login session!")
-				}
-			} getOrElse(Future.failed(new RuntimeException("No session accessor available for the access request! Is the session lib configured correctly?")))
+		req map { r =>
+			val br = r.asInstanceOf[BasicAccessRequest]
+			authenticate(req) flatMap { actionResult =>
+				if (actionResult.status != ActionResultCode.SUCCESSFUL)
+					Future.successful(BasicActionResult(Some(br), LogoutResultCode.FAILED_NOT_AUTHENTICATED, "Cannot renew login for unauthenticated request!"))
+				
+				else loginSessionAccessor(br) map { accessor =>
+					accessor.renew(TOKEN_KEY) map { renewResult =>  // renew the time to live of the token in the session
+						if (renewResult) BasicActionResult(Some(br), ActionResultCode.SUCCESSFUL, "Successfully renew the login!")
+						else BasicActionResult(Some(br), "Unable to renew to login session!")
+					}
+				} getOrElse (Future.failed(new RuntimeException("No session accessor available for the access request! Is the session lib configured correctly?")))
+			}
+		} getOrElse {
+			Future.successful(BasicActionResult(None, ActionResultCode.FAILED_REQUEST_NOT_FOUND, "Unable to find the access request"))
 		}
 	}
 }
