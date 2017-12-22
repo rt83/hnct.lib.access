@@ -83,14 +83,14 @@ class BasicAccessProcessor @Inject() (
 				fold(Future.successful(BasicActionResult(Some(br), AuthenticateResultCode.FAILED_SESSION_NOT_FOUND, "No accessor available")))  // fold = if there is no session, we return failed result
 			{
 				accessor => accessor.read[String](TOKEN_KEY) map {  // if have accessor, read the token, this is a future
-					
+
 					_.map { sv =>      // the future hold an Option[SessionValue[String]], have to map it to the action result
 						if (r.token.isDefined && sv.value.equals(r.token.get))
 							BasicActionResult(Some(br), ActionResultCode.SUCCESSFUL, "Authentication successful!")
 						else BasicActionResult(Some(br), "Access token is not correct!")
-						
+
 					} getOrElse (BasicActionResult(Some(br), "Access token not found!"))  // if the read doesn't return any session value, we return failed by default
-					
+
 				}
 			}
 		} getOrElse {
@@ -166,11 +166,11 @@ class BasicAccessProcessor @Inject() (
 	protected def writeSessionOnSuccessLogin(result : LoginResult) : Future[Boolean] = {
 		
 		loginSessionAccessor(result.request.get) map { accessor =>
-			
+
 			result.token map { token =>
 				val timeout = if (result.request.get.timeout == -1) loginTimeout else result.request.get.timeout
 				if (timeout == -1) accessor.write(TOKEN_KEY, token)	// implicit conversion to session value is used here
-				else accessor.write(TOKEN_KEY, (token, timeout)) 	// implicit conversion to session value is used here	
+				else accessor.write(TOKEN_KEY, (token, timeout)) 	// implicit conversion to session value is used here
 				
 			} getOrElse(Future.failed(new RuntimeException("Invalid login result being written!")))
 			

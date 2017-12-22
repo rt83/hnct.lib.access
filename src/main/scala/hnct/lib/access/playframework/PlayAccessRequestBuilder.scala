@@ -35,7 +35,7 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 	override def buildFromCookie(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest] = {
 
 		val uname = req.session.get(Const.COOKIE_USERNAME_FIELD)
-		val token = req.session.get(Const.COOKIE_TOKEN_FIELD);
+		val token = req.session.get(Const.COOKIE_TOKEN_FIELD)
 
 		if (uname.isEmpty || token.isEmpty) Future.failed(new RuntimeException(
 			"""Unable to find username or access token while
@@ -77,7 +77,7 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 		val uname = req.session.get(Const.COOKIE_USERNAME_FIELD)
 		val token = req.session.get(Const.COOKIE_TOKEN_FIELD)
 		val sid = req.session.get(Const.COOKIE_SESSION_ID_FIELD)
-		
+
 		processor match {
 			case p: SessionAccessProcessor => {
 				
@@ -156,19 +156,20 @@ abstract class PlayARBuilder
 		refine(request).flatMap { refined =>	// refine the request
 			refined.fold(Future.successful(_),	// if the refining process return a result, use it
 			{ implicit req =>							// if not, we invoke the block
-				
-				// if the incoming session never have a session id, we try to get it from the refined access request
-				if (req.session.get(Const.COOKIE_SESSION_ID_FIELD).isEmpty)
-					req.accessRequest match {
+
+				req.accessRequest map { actualReq =>
+					actualReq match {
 						// if the access request is not null, and is a session access request, and it has a non-empty session id registered
 						// write the session id to the cookie of the returning result
-						case x : SessionAccessRequest if (x != null && !x.sessionId.isEmpty) => block(req) map {
-							result => result.addingToSession(Const.COOKIE_SESSION_ID_FIELD -> x.sessionId.get)
+						case x : SessionAccessRequest if (x != null && !x.sessionId.isEmpty) => block(req) map { result =>
+							val currentSessionId = req.session.get(Const.COOKIE_SESSION_ID_FIELD)
+							if (currentSessionId.isEmpty || currentSessionId.get != x.sessionId.get)
+								result.addingToSession(Const.COOKIE_SESSION_ID_FIELD -> x.sessionId.get)
+							else result
 						}
 						case _ => block(req)
 					}
-				else block(req)
-				
+				} getOrElse(block(req))
 			})
 		}
 	}
@@ -225,6 +226,8 @@ class PlayLoginARBuilder
 	processor: AccessProcessor, cb: ConcreteRequestBuilder
 ) extends PlayARBuilder(config, processor, cb) {
 
-	def build(request: Request[_], processor: AccessProcessor) = cb.buildFromForm(request, processor, config)
+	def build(request: Request[_], processor: AccessProcessor) = {
+		cb.buildFromForm(request, processor, config)
+	}
 
 }
