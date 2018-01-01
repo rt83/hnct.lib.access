@@ -6,8 +6,7 @@ import hnct.lib.access.core.session.SessionAccessRequest
 import hnct.lib.utility.Logable
 import play.api.mvc._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * Store the configuration for the authentication process we want to
@@ -126,7 +125,7 @@ object CredentialSource extends Enumeration {
   * we cannot explicitly supply the needed parameters to it and have to use dependency injection
   * support from play.
   */
-class Authenticate(ap: AccessProcessor, config: AuthenticationConfig)
+class Authenticate(ap: AccessProcessor, config: AuthenticationConfig)(implicit override val executionContext: ExecutionContext)
 	extends ActionFilter[PlayHTTPRequest] {
 
 	def filter[A](request: PlayHTTPRequest[A]): Future[Option[Result]] = {
@@ -163,7 +162,7 @@ class Authenticate(ap: AccessProcessor, config: AuthenticationConfig)
 	* @param ap
 	* @param config
 	*/
-class DoLogout(ap: AccessProcessor, config: AuthenticationConfig)
+class DoLogout(ap: AccessProcessor, config: AuthenticationConfig)(implicit override val executionContext: ExecutionContext)
 	extends ActionFunction[PlayHTTPRequest, PlayHTTPRequest] {
 	
 	def refine[A](request: PlayHTTPRequest[A]): Future[Either[Result, PlayHTTPRequest[A]]] = {
@@ -217,7 +216,7 @@ class DoLogout(ap: AccessProcessor, config: AuthenticationConfig)
 }
 
 
-class DoLogin(ap: AccessProcessor, config: AuthenticationConfig)
+class DoLogin(ap: AccessProcessor, config: AuthenticationConfig)(implicit override val executionContext: ExecutionContext)
 	extends ActionFunction[PlayHTTPRequest, PlayHTTPRequest] with Logable {
 
 	def filter[A](request: PlayHTTPRequest[A]): Future[Option[Result]] = {
@@ -256,9 +255,9 @@ class DoLogin(ap: AccessProcessor, config: AuthenticationConfig)
 								(Const.COOKIE_USERNAME_FIELD -> request.accessRequest.get.username.get),
 									(Const.COOKIE_TOKEN_FIELD -> lr.token.get)
 							)(request) // when login successfully, we can assume we have the token already)
-							if (request.accessRequest.isInstanceOf[SessionAccessRequest])
+							if (request.accessRequest.get.isInstanceOf[SessionAccessRequest])
 								result = result.addingToSession(
-									(Const.COOKIE_SESSION_ID_FIELD -> request.accessRequest.asInstanceOf[SessionAccessRequest].sessionId.get)
+									(Const.COOKIE_SESSION_ID_FIELD -> request.accessRequest.get.asInstanceOf[SessionAccessRequest].sessionId.get)
 								)(request)
 
 							result

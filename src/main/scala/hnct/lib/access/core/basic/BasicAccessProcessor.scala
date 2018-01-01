@@ -10,7 +10,7 @@ import hnct.lib.access.core.util.AccessKeyGenerator
 import hnct.lib.session.api._
 import hnct.lib.utility.Logable
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 

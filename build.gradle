@@ -5,7 +5,7 @@
 version = "1.0.0"
 group = "hnct"
 
-ext.scalaVersion = "2.11.8"
+ext.scalaVersion = "2.12.4"
 
 dependencies {
 
@@ -14,7 +14,7 @@ dependencies {
 	projDependency ':hnct.lib.utility', 'hnct:hnct.lib.utility:1.0.0-SNAPSHOT', true
 	
 	// playframework dependencies
-	compile 'com.typesafe.play:play_2.11:2.5.8'
+	compile 'com.typesafe.play:play_2.12:2.6.10'
 	
 	compile 'commons-codec:commons-codec:1.10'
 	

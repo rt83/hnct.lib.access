@@ -4,6 +4,8 @@ import com.google.inject.Inject
 import hnct.lib.access.api.{AccessProcessor, AccessProcessorContainer, AccessRequest}
 import play.api.mvc.{ActionFunction, Request}
 
+import scala.concurrent.ExecutionContext
+
 /**
   * This file contains the two utility class so that play application can conveniently build
   * the authentication and login action. These utility class should be obtained through GUICE so that
@@ -29,7 +31,7 @@ class PlayAuth {
 	  */
 	def apply()(
 		implicit ap: AccessProcessor,
-		config: AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
+		config: AuthenticationConfig, ec : ExecutionContext): ActionFunction[Request, PlayHTTPRequest] = {
 
 		val cb = reqBuilder.get(ap.ART)
 
@@ -41,7 +43,7 @@ class PlayAuth {
 	  * no manual binding is required), the access processor can be retrieved through its name. This method
 	  * create the play auth action using the access processor retrieved using the specified name.
 	  */
-	def apply(apName: String)(implicit apc: AccessProcessorContainer, conf: AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
+	def apply(apName: String)(implicit apc: AccessProcessorContainer, conf: AuthenticationConfig, ec : ExecutionContext): ActionFunction[Request, PlayHTTPRequest] = {
 
 		implicit val ap = apc.get(apName).getOrElse(throw new RuntimeException("Unable to find the access processor " + apName))
 
@@ -51,7 +53,7 @@ class PlayAuth {
 	
 	def logout(
 		implicit ap: AccessProcessor,
-		config: AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
+		config: AuthenticationConfig, ec : ExecutionContext): ActionFunction[Request, PlayHTTPRequest] = {
 		
 		val cb = reqBuilder.get(ap.ART)
 		
@@ -79,7 +81,8 @@ class PlayLogin {
 	  */
 	def apply()(
 		implicit ap: AccessProcessor,
-		config: AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
+		config: AuthenticationConfig,
+		ec : ExecutionContext): ActionFunction[Request, PlayHTTPRequest] = {
 
 		val cb = reqBuilder.get(ap.ART)
 
@@ -92,7 +95,7 @@ class PlayLogin {
 	  * no manual binding is required), the access processor can be retrieved through its name. This method
 	  * create the play auth action using the access processor retrieved using the specified name.
 	  */
-	def apply(apName: String)(implicit apc: AccessProcessorContainer, conf: AuthenticationConfig): ActionFunction[Request, PlayHTTPRequest] = {
+	def apply(apName: String)(implicit apc: AccessProcessorContainer, conf: AuthenticationConfig, ec : ExecutionContext): ActionFunction[Request, PlayHTTPRequest] = {
 
 		implicit val ap = apc.get(apName).getOrElse(throw new RuntimeException("Unable to find the access processor " + apName))
 

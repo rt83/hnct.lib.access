@@ -8,8 +8,7 @@ import play.api.data.Form
 import play.api.data.Forms._
 import play.api.mvc._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -150,7 +149,7 @@ abstract class PlayARBuilder
 (
 	config: AuthenticationConfig,
 	processor: AccessProcessor, cb: ConcreteRequestBuilder
-) extends AccessRequestBuilder[Request[_]] with ActionFunction[Request, PlayHTTPRequest] {
+)(implicit override val executionContext : ExecutionContext) extends AccessRequestBuilder[Request[_]] with ActionFunction[Request, PlayHTTPRequest] {
 	
 	override def invokeBlock[A](request : Request[A], block : (PlayHTTPRequest[A] => Future[Result])) = {
 		refine(request).flatMap { refined =>	// refine the request
@@ -200,7 +199,7 @@ class PlayAuthARBuilder
 (
 	config: AuthenticationConfig,
 	processor: AccessProcessor, cb: ConcreteRequestBuilder
-) extends PlayARBuilder(config, processor, cb) {
+)(implicit ec : ExecutionContext) extends PlayARBuilder(config, processor, cb) {
 
 	def build(request: Request[_], processor: AccessProcessor) = {
 		config.credentialSource match {
@@ -224,7 +223,7 @@ class PlayLoginARBuilder
 (
 	config: AuthenticationConfig,
 	processor: AccessProcessor, cb: ConcreteRequestBuilder
-) extends PlayARBuilder(config, processor, cb) {
+)(implicit ec : ExecutionContext) extends PlayARBuilder(config, processor, cb) {
 
 	def build(request: Request[_], processor: AccessProcessor) = {
 		cb.buildFromForm(request, processor, config)
