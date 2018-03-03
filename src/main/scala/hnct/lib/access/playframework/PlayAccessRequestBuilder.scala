@@ -7,6 +7,9 @@ import hnct.lib.utility.Logable
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.mvc._
+import play.api.libs.json._
+import play.api.libs.json.Reads._
+import play.api.libs.functional.syntax._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -25,6 +28,8 @@ trait ConcreteRequestBuilder {
 	def buildFromCookie(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest]
 
 	def buildFromForm(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest]
+	
+	def buildFromJson(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest]
 }
 
 class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
@@ -59,6 +64,18 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 			Future.successful(new BasicAccessRequest(fv.username, fv.token))
 		}
 	}
+	
+	override def buildFromJson(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest] = {
+		
+		req.asInstanceOf[Request[AnyContent]].body.asJson map { js =>
+			((__ \ "username").readNullable[String] ~ (__ \ "token").readNullable[String])(BARForm.apply _).reads(js) match {
+				case x : JsSuccess[BARForm] => Future.successful(new BasicAccessRequest(x.get.username, x.get.token))
+				case _ => Future.failed(new RuntimeException("Malformed json."))
+			}
+			
+		} getOrElse Future.failed(new RuntimeException("Unable to get request. No json found."))
+	
+	}
 }
 
 class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
@@ -90,6 +107,33 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 		}
 			
 	}
+	
+	/**
+		* There are cases where some user access the page, without logging in and we want to track their session.
+		* To do this, we create a session id without they logging in and probably save it into the cookie.
+		* Because of this, when user submit login form (or authenticate using form) the access request need to use
+		* the session that already created. Hence, if the session id is not available in the login form
+		* we will build the request with pre-created session id from cookie. If the cookie itself don't have, we will
+		* try to use the access processor to build it, if the access processor is a SessionAccessProcessor
+		*/
+	private def initializeSid(csid : Option[String],config :  AuthenticationConfig, req : Request[_], processor : AccessProcessor) : Option[String] = {
+		csid orElse {
+			/**
+				* When we login, and we allow re-using the previous login session id then
+				* we have to extract the session id from Cookie
+				*/
+			if (!config.isLogin || config.reuseOldSessionOnLogin)
+				req.session.get(Const.COOKIE_SESSION_ID_FIELD)
+			else None
+		} orElse {
+			if (config.initializeSessionId)
+				processor match {
+					case x : SessionAccessProcessor => Some(x.randomSessionId)
+					case _ => None
+				}
+			else None
+		}
+	}
 
 	override def buildFromForm(req: Request[_], processor: AccessProcessor, config: AuthenticationConfig): Future[AccessRequest] = {
 
@@ -102,35 +146,32 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 		if (reqForm.hasErrors) Future.failed(new RuntimeException("Unable to find access request from submitted form"))
 		else {
 			val fv = reqForm.get
-			
-			/**
-			  * There are cases where some user access the page, without logging in and we want to track their session.
-			  * To do this, we create a session id without they logging in and probably save it into the cookie.
-			  * Because of this, when user submit login form (or authenticate using form) the access request need to use
-			  * the session that already created. Hence, if the session id is not available in the login form
-			  * we will build the request with pre-created session id from cookie. If the cookie itself don't have, we will
-			  * try to use the access processor to build it, if the access processor is a SessionAccessProcessor
-			  */
-			val sid = fv.sid orElse {
-				/**
-					* When we login, and we allow re-using the previous login session id then
-					* we have to extract the session id from Cookie
-					*/
-				if (!config.isLogin || config.reuseOldSessionOnLogin)
-					req.session.get(Const.COOKIE_SESSION_ID_FIELD)
-				else None
-			} orElse {
-				if (config.initializeSessionId)
-					processor match {
-						case x : SessionAccessProcessor => Some(x.randomSessionId)
-						case _ => None
-					}
-				else None
-			}
+			val sid = initializeSid(fv.sid, config, req, processor)
 			
 			if (sid.isEmpty) Future.failed(throw new RuntimeException("Unable to find session id from the submitted request"))
 			else Future.successful(new SessionAccessRequest(fv.username, fv.token, sid))
 		}
+	}
+	
+	override def buildFromJson(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest] = {
+		
+		req.asInstanceOf[Request[AnyContent]].body.asJson map { js =>
+			(
+				(__ \ "username").readNullable[String] ~
+				(__ \ "token").readNullable[String] ~
+				(__ \ "sid").readNullable[String]
+			)(SARForm.apply _).reads(js) match {
+				case x : JsSuccess[SARForm] => {
+					val sid = initializeSid(x.get.sid, config, req, processor)
+					
+					if (sid.isEmpty) Future.failed(throw new RuntimeException("Unable to find session id from the submitted request"))
+					else Future.successful(new SessionAccessRequest(x.get.username, x.get.token, sid))
+				}
+				case _ => Future.failed(new RuntimeException("Malformed json."))
+			}
+			
+		} getOrElse Future.failed(new RuntimeException("Unable to get request. No json found."))
+		
 	}
 }
 
@@ -205,6 +246,7 @@ class PlayAuthARBuilder
 		config.credentialSource match {
 			case CredentialSource.COOKIE => cb.buildFromCookie(request, processor, config);
 			case CredentialSource.FORM => cb.buildFromForm(request, processor, config);
+			case CredentialSource.JSON => cb.buildFromJson(request, processor, config)
 			case _ => Future.failed(new RuntimeException(s"Unknown credential source is found!"));
 		}
 	}
@@ -226,7 +268,12 @@ class PlayLoginARBuilder
 )(implicit ec : ExecutionContext) extends PlayARBuilder(config, processor, cb) {
 
 	def build(request: Request[_], processor: AccessProcessor) = {
-		cb.buildFromForm(request, processor, config)
+		config.credentialSource match {
+			case CredentialSource.COOKIE => Future.failed(new RuntimeException(s"When login, cookie can't be used as credential source."))
+			case CredentialSource.FORM => cb.buildFromForm(request, processor, config)
+			case CredentialSource.JSON => cb.buildFromJson(request, processor, config)
+			case _ => Future.failed(new RuntimeException(s"Unknown credential source is found!"))
+		}
 	}
 
 }

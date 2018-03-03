@@ -28,9 +28,14 @@ class AuthenticationConfig {
 	  * Whether or not we will remember the last URL the user access.
 	  */
 	var rememberLastUrl = true
+	
+	/**
+		* Where to write the credential data to after login successfully
+		*/
+	var credentialTarget = CredentialSource.COOKIE
 
 	/**
-	  * Source of data for user identification
+	  * Source of data for user identification when build access request
 	  */
 	var credentialSource = CredentialSource.COOKIE
 
@@ -113,7 +118,7 @@ class AuthenticationConfig {
 }
 
 object CredentialSource extends Enumeration {
-	val COOKIE, FORM = Value
+	val COOKIE, FORM, JSON = Value
 }
 
 /**
@@ -200,7 +205,7 @@ class DoLogout(ap: AccessProcessor, config: AuthenticationConfig)(implicit overr
 					// remove the cookie information if needed
 					request.logoutResult.map({ lr =>
 						
-						if (lr.status == LogoutResultCode.SUCCESSFUL && config.credentialSource == CredentialSource.COOKIE) {
+						if (lr.status == LogoutResultCode.SUCCESSFUL && config.credentialTarget == CredentialSource.COOKIE) {
 							// logout successfully, removing the possible cookies
 							blockResult.removingFromSession(Const.COOKIE_USERNAME_FIELD,
 								Const.COOKIE_TOKEN_FIELD, Const.COOKIE_SESSION_ID_FIELD)(request)
@@ -248,7 +253,7 @@ class DoLogin(ap: AccessProcessor, config: AuthenticationConfig)(implicit overri
 					// add login result information into the cookie if needed
 					request.loginResult.map({ lr =>
 
-						if (lr.status == LoginResultCode.SUCCESSFUL && config.credentialSource == CredentialSource.COOKIE) {
+						if (lr.status == LoginResultCode.SUCCESSFUL && config.credentialTarget == CredentialSource.COOKIE) {
 							
 							// login successfully
 							var result = blockResult.addingToSession(
