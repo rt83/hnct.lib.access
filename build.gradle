@@ -2,16 +2,27 @@
  * Project hnct.lib.access
  * @author ryan
  */
+plugins {
+	id 'hnct.build'
+}
+
 version = "1.0.0"
 group = "hnct"
 
-ext.scalaVersion = "2.12.4"
+hnct {
+	lang {
+		scala version:"2.12.4"
+	}
+}
+
 
 dependencies {
 
-	projDependency ':hnct.lib.session', 'hnct:hnct.lib.session:1.0.0-SNAPSHOT', true
-	projDependency ':hnct.lib.config', 'hnct:hnct.lib.config:1.0.0-SNAPSHOT', true
-	projDependency ':hnct.lib.utility', 'hnct:hnct.lib.utility:1.0.0-SNAPSHOT', true
+	internal {
+		compile ':hnct.lib.session', 'hnct:hnct.lib.session:1.0.0-SNAPSHOT', true
+		compile ':hnct.lib.config', 'hnct:hnct.lib.config:1.0.0-SNAPSHOT', true
+		compile ':hnct.lib.utility', 'hnct:hnct.lib.utility:1.0.0-SNAPSHOT', true
+	}
 	
 	// playframework dependencies
 	compile 'com.typesafe.play:play_2.12:2.6.10'
