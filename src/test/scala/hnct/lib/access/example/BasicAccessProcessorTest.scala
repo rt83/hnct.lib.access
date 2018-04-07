@@ -17,7 +17,7 @@ import hnct.lib.session.api.SessionModule
  */
 object BasicAccessProcessorTest extends Logable {
 	
-	def main(args : Array[String]) : Unit = {
+	/*def main(args : Array[String]) : Unit = {
 		
 		val injector = Guice.createInjector(
 				new BasicAccessProcessorModule(),	// provide the basic implementation of the access processor
@@ -65,6 +65,6 @@ object BasicAccessProcessorTest extends Logable {
 		
 		Thread.sleep(10000)	// sleep so that the main thread doesn't exit before things get executed
 
-	}
+	}*/
 	
 }
