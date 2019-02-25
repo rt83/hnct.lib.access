@@ -20,6 +20,20 @@ import scala.concurrent.Future
  * 
  * Beside, it requires set of available DataAdapter and PasswordHaser. Application that use this BasicAccessProcessor
  * should provide the instances of DataAdapter and PasswordHasher through a set binding.
+	*
+	* The basic access processor can control the login timeout in a few ways. Underlying, the basic access processor
+	* utilize the session library to maintain the session. Session library allows auto renew on read. If this property is
+	* set, every time access processor successfully read the token from the session, the token will automatically renewed by the
+	* amount set in the login request.
+	*
+	* If the auto renew on read is not set for the session library, the access processor will not automatically
+	* renew a login. However, the user can choose to manually renew the login session using the access processor
+	* renew login method. This method will basically call the renew method of the session library directly.
+	*
+	* Note that, the login expiry time is set using the time to live in the access request passed to the login method or configured
+	* in the access processor config or in the session config.
+	*
+	* Time to live set in the authentication access request has no effect.
  */
 class BasicAccessProcessor @Inject() (
 		

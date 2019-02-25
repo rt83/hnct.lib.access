@@ -115,6 +115,15 @@ class AuthenticationConfig {
 		* Applicable to SessionAccessProcessor (used in SessionAccessRequestBuilder)
 		*/
 	var isLogin = false
+
+	/**
+		* Remember me duration is the session time to live when remember me option is selected
+		* when building access request. If this value is not -1 and remember me is selected when
+		* login request is submitted then the access request builder should set it as the login
+		* timeout. When set, it takes priority over the login timeout set for the access processor which
+		* takes priority over the timeout set at the session library level.
+		*/
+	var rememberMeDuration = 14 * 24 * 3600 * 1000	// default is 14 days
 }
 
 object CredentialSource extends Enumeration {

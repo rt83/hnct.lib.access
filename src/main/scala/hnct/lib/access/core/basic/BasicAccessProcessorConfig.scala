@@ -16,6 +16,9 @@ class BasicAccessProcessorConfig(
 		var loginTimeout : Long,
 		/**
 		 * Whether or not to renew the login upon authentication success.
+			* TODO: currently if this is true and renew on read is set to false
+			* at the session library level, this field is not effective. To reimplement
+			* to make this field work in all case
 		 */
 		var renewOnAuth : Boolean
 	) extends AccessProcessorConfig {

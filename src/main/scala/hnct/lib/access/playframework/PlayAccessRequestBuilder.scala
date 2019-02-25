@@ -6,13 +6,12 @@ import hnct.lib.access.core.session.{SessionAccessProcessor, SessionAccessReques
 import hnct.lib.utility.Logable
 import play.api.data.Form
 import play.api.data.Forms._
-import play.api.mvc._
-import play.api.libs.json._
-import play.api.libs.json.Reads._
 import play.api.libs.functional.syntax._
+import play.api.libs.json.Reads._
+import play.api.libs.json._
+import play.api.mvc._
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
 
 /**
   * This is the concrete builder that have the actual logic to build from request and processor to access request.
@@ -34,7 +33,7 @@ trait ConcreteRequestBuilder {
 
 class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 
-	case class BARForm(username: Option[String], token: Option[String])
+	case class BARForm(username: Option[String], token: Option[String], remember : Option[Boolean])
 
 	override def buildFromCookie(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest] = {
 
@@ -46,7 +45,7 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 		  building access request from cookie"""))
 		else
 			processor match {
-				case _: BasicAccessProcessor => Future.successful(new BasicAccessRequest(uname, token))
+				case _: BasicAccessProcessor => Future.successful(new BasicAccessRequest(uname, token, config.rememberMeDuration))
 				case _ => Future.failed(new RuntimeException(s"Unsupported processor type $classOf[processor]"))
 			}
 	}
@@ -55,21 +54,28 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 
 		val reqForm = Form(mapping(
 			"username" -> optional(text),
-			"token" -> optional(text)
+			"token" -> optional(text),
+			"remember" -> optional(boolean)
 		)(BARForm.apply)(BARForm.unapply)).bindFromRequest()(req)
 
 		if (reqForm.hasErrors) Future.failed(new RuntimeException("Unable to find access request from submitted form"))
 		else {
 			val fv = reqForm.get
-			Future.successful(new BasicAccessRequest(fv.username, fv.token))
+			val duration = if (fv.remember.isDefined && fv.remember.get) config.rememberMeDuration else -1
+			Future.successful(new BasicAccessRequest(fv.username, fv.token, duration))
 		}
 	}
 	
 	override def buildFromJson(req: Request[_], processor: AccessProcessor, config : AuthenticationConfig): Future[AccessRequest] = {
 		
 		req.asInstanceOf[Request[AnyContent]].body.asJson map { js =>
-			((__ \ "username").readNullable[String] ~ (__ \ "token").readNullable[String])(BARForm.apply _).reads(js) match {
-				case x : JsSuccess[BARForm] => Future.successful(new BasicAccessRequest(x.get.username, x.get.token))
+			((__ \ "username").readNullable[String] ~
+				(__ \ "token").readNullable[String] ~
+				(__ \ "remember").readNullable[Boolean])(BARForm.apply _).reads(js) match {
+				case x : JsSuccess[BARForm] => {
+					val duration = if (x.get.remember.isDefined && x.get.remember.get) config.rememberMeDuration else -1
+					Future.successful(new BasicAccessRequest(x.get.username, x.get.token, duration))
+				}
 				case _ => Future.failed(new RuntimeException("Malformed json."))
 			}
 			
@@ -80,7 +86,7 @@ class BasicAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 
 class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 
-	case class SARForm(username: Option[String], token: Option[String], sid : Option[String])
+	case class SARForm(username: Option[String], token: Option[String], remember: Option[Boolean], sid : Option[String])
 	
 	/**
 	  * Build access request from Cookie. This will fail
@@ -100,8 +106,8 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 				if (sid.isEmpty) {
 					if (!config.initializeSessionId) Future.failed(new RuntimeException(
 						"""Unable to find the session id while building access request from cookie"""))
-					else Future.successful(new SessionAccessRequest(uname, token, Some(p.randomSessionId)))
-				} else Future.successful(new SessionAccessRequest(uname, token, sid))
+					else Future.successful(new SessionAccessRequest(uname, token, -1, Some(p.randomSessionId)))
+				} else Future.successful(new SessionAccessRequest(uname, token, -1, sid))
 			}
 			case _ => Future.failed(new RuntimeException(s"Unsupported processor type $classOf[processor]"))
 		}
@@ -140,6 +146,7 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 		val reqForm = Form(mapping(
 			"username" -> optional(text),
 			"token" -> optional(text),
+			"remember" -> optional(boolean),
 			"sid" -> optional(text)
 		)(SARForm.apply)(SARForm.unapply)).bindFromRequest()(req)
 
@@ -147,9 +154,9 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 		else {
 			val fv = reqForm.get
 			val sid = initializeSid(fv.sid, config, req, processor)
-			
+			val duration = if (fv.remember.isDefined && fv.remember.get) config.rememberMeDuration else -1
 			if (sid.isEmpty) Future.failed(throw new RuntimeException("Unable to find session id from the submitted request"))
-			else Future.successful(new SessionAccessRequest(fv.username, fv.token, sid))
+			else Future.successful(new SessionAccessRequest(fv.username, fv.token, duration, sid))
 		}
 	}
 	
@@ -159,13 +166,14 @@ class SessionAccessRequestBuilder extends ConcreteRequestBuilder with Logable {
 			(
 				(__ \ "username").readNullable[String] ~
 				(__ \ "token").readNullable[String] ~
+				(__ \ "remember").readNullable[Boolean] ~
 				(__ \ "sid").readNullable[String]
 			)(SARForm.apply _).reads(js) match {
 				case x : JsSuccess[SARForm] => {
 					val sid = initializeSid(x.get.sid, config, req, processor)
-					
+					val duration = if (x.get.remember.isDefined && x.get.remember.get) config.rememberMeDuration else -1
 					if (sid.isEmpty) Future.failed(throw new RuntimeException("Unable to find session id from the submitted request"))
-					else Future.successful(new SessionAccessRequest(x.get.username, x.get.token, sid))
+					else Future.successful(new SessionAccessRequest(x.get.username, x.get.token, duration, sid))
 				}
 				case _ => Future.failed(new RuntimeException("Malformed json."))
 			}
@@ -190,9 +198,10 @@ abstract class PlayARBuilder
 (
 	config: AuthenticationConfig,
 	processor: AccessProcessor, cb: ConcreteRequestBuilder
-)(implicit override val executionContext : ExecutionContext) extends AccessRequestBuilder[Request[_]] with ActionFunction[Request, PlayHTTPRequest] {
+)(implicit override val executionContext : ExecutionContext) extends AccessRequestBuilder[Request[_]] with ActionFunction[Request, PlayHTTPRequest] with Logable {
 	
 	override def invokeBlock[A](request : Request[A], block : (PlayHTTPRequest[A] => Future[Result])) = {
+
 		refine(request).flatMap { refined =>	// refine the request
 			refined.fold(Future.successful(_),	// if the refining process return a result, use it
 			{ implicit req =>							// if not, we invoke the block
@@ -215,17 +224,17 @@ abstract class PlayARBuilder
 	}
 
 	def refine[A](request: Request[A]): Future[Either[Result, PlayHTTPRequest[A]]] = {
-		
+
 		val f : Future[Either[Result, PlayHTTPRequest[A]]] = build(request, processor) map { ar =>
 			Right(new PlayHTTPRequest(request, ar))
 		}
-		
+
 		f.recoverWith {
 			case e : Throwable => {
 				
-				if (config.requestBuildFailedHandler != null)
+				if (config.requestBuildFailedHandler != null) {
 					config.requestBuildFailedHandler(e).map(Left(_))
-				else if (config.continueOnRequestBuildFailed) {
+				} else if (config.continueOnRequestBuildFailed) {
 					val newReq = new PlayHTTPRequest(request)
 					Future.successful(Right(newReq))
 				}
